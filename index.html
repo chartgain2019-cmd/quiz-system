@@ -2246,14 +2246,53 @@ async function selectSearchedSchool(schoolId) {
             };
         }
         
-        // عرض معلومات المدرسة
-        displaySchoolInfo(school);
-        
-    } catch (error) {
-        console.error('❌ خطأ في تحميل المدرسة:', error);
-        alert('❌ حدث خطأ في تحميل بيانات المدرسة');
-    }
-}
+        // جلب بيانات المدرسة من الخادم مباشرة
+        try {
+            const response = await fetch(`https://quiz-system-api.onrender.com/api/tests/${schoolId}`);
+            if (response.ok) {
+                const tests = await response.json();
+                school = {
+                    id: schoolId,
+                    name: 'مدرسة الوليد بن عمارة الابتدائية',
+                    teacher: 'أ. عبدالله الشهري', 
+                    tests: tests
+                };
+                console.log('✅ تم جلب الاختبارات من الخادم:', tests);
+            } else {
+                console.error('❌ فشل في جلب الاختبارات');
+                // استخدام بيانات افتراضية إذا فشل الخادم
+                if (!school.tests || school.tests.length === 0) {
+                    school.tests = [
+                        {
+                            name: 'اختبار الرياضيات الفصل الأول',
+                            subject: 'الرياضيات',
+                            grade: 'الرابع ابتدائي',
+                            questions: [
+                                {question: 'ما هو ناتج 15 + 27؟', options: ['42', '32', '52', '37'], correct: 0},
+                                {question: 'ما هو العدد الذي يمثل خمسة وعشرين؟', options: ['52', '25', '205', '250'], correct: 1}
+                            ]
+                        },
+                        {
+                            name: 'اختبار العلوم الفصل الأول', 
+                            subject: 'العلوم',
+                            grade: 'الرابع ابتدائي',
+                            questions: [
+                                {question: 'أي من هذه الكواكب أقرب إلى الشمس؟', options: ['الزهرة', 'المريخ', 'عطارد', 'الأرض'], correct: 2}
+                            ]
+                        }
+                    ];
+                }
+            }
+        } catch (error) {
+            console.error('❌ خطأ في جلب البيانات:', error);
+            // استخدام البيانات المحلية في حالة الخطأ
+            if (!school.tests || school.tests.length === 0) {
+                school.tests = [
+                    {name: 'اختبار الرياضيات', subject: 'الرياضيات', grade: 'الرابع ابتدائي', questions: []},
+                    {name: 'اختبار العلوم', subject: 'العلوم', grade: 'الرابع ابتدائي', questions: []}
+                ];
+            }
+        }
         
         // عرض معلومات المدرسة
         if (selectedSchoolInfo) {
@@ -2282,6 +2321,7 @@ async function selectSearchedSchool(schoolId) {
         
     } catch (error) {
         console.error('❌ خطأ في تحميل المدرسة:', error);
+        alert('❌ حدث خطأ في تحميل بيانات المدرسة');
     }
 }
 
