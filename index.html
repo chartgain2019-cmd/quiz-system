@@ -1093,7 +1093,18 @@ window.jsPDF = window.jspdf.jsPDF;
 
 <script>
 // ========== أنظمة الاستقرار والأمان المحسنة ==========
-
+// ========== حل نهائي لأخطاء الامتدادات الخارجية ==========
+// تعريف hotkeys فارغ لمنع أخطاء الامتدادات
+if (typeof hotkeys === 'undefined') {
+    window.hotkeys = function() { 
+        return {
+            filter: function() { return this; },
+            key: function() { return this; },
+            unbind: function() { return this; },
+            isPressed: function() { return false; }
+        }; 
+    };
+}
 // نظام معالجة الأخطاء المركزي
 const ErrorHandler = {
     logError: function(error, context = '') {
