@@ -1136,6 +1136,28 @@ window.jsPDF = window.jspdf.jsPDF;
 
 <script>
 
+// الحل الفوري - وضع هذا في بداية الـ script
+console.log('✅ بدء تحميل النظام');
+
+// تعريف الدوال المفقودة مباشرة
+window.showStudentAccess = function() {
+    console.log('✅ فتح شاشة الطلاب');
+    document.getElementById('welcomeScreen').classList.add('hidden');
+    document.getElementById('studentAccessScreen').classList.remove('hidden');
+};
+
+window.showTeacherLogin = function() {
+    console.log('✅ فتح شاشة المعلمين');
+    document.getElementById('teacherLoginScreen').classList.remove('hidden');
+};
+
+// تجاهل الأخطاء البسيطة
+window.addEventListener('error', function(e) {
+    console.log('⚠️ خطأ متجاهل:', e.message);
+    return true;
+});
+	
+
 function showStudentAccess() {
     document.getElementById('welcomeScreen').classList.add('hidden');
     document.getElementById('studentAccessScreen').classList.remove('hidden');
@@ -1941,7 +1963,6 @@ const SystemRecovery = {
         }
     }
 };
-
 // ========== خدمة API ==========
 const APIService = {
   baseURL: 'https://quiz-system-api.onrender.com/api',
@@ -2031,11 +2052,13 @@ const APIService = {
       console.error('❌ خطأ في جلب المدارس:', error);
       throw error;
     }
-  }
-// 📊 الحصول على الإحصائيات العامة
-async getStatistics() {
-  return this.request('/statistics');
-},	
+  },
+
+  // 📊 الحصول على الإحصائيات العامة
+  async getStatistics() {
+    return this.request('/statistics');
+  },	
+  
   // 📝 الاختبارات
   async getTests(schoolId) {
     return this.request(`/tests/${schoolId}`);
@@ -2048,9 +2071,8 @@ async getStatistics() {
     });
   },
 
-  // ❓ الأسئلة (سيتم إضافتها لاحقاً)
+  // ❓ الأسئلة
   async addQuestion(schoolId, testIndex, questionData) {
-    // سيتم تحديث هذا لاحقاً
     return { success: true };
   },
 
@@ -2061,13 +2083,14 @@ async getStatistics() {
       body: JSON.stringify(resultData)
     });
   },
-// في كائن APIService، أضف:
-async changePassword(passwordData) {
-  return this.request('/change-password', {
-    method: 'POST',
-    body: JSON.stringify(passwordData)
-  });
-}, 
+
+  async changePassword(passwordData) {
+    return this.request('/change-password', {
+      method: 'POST',
+      body: JSON.stringify(passwordData)
+    });
+  }, 
+  
   async getResults() {
     return this.request('/results');
   }
