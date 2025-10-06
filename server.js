@@ -222,6 +222,23 @@ app.get('/api/schools', (req, res) => {
   }
 });
 
+// 🏫 الحصول على جميع المدارس (للبحث - بدون مصادقة)
+app.get('/api/all-schools', (req, res) => {
+  try {
+    const allSchools = Object.values(database.schools).map(school => ({
+      id: school.id,
+      name: school.name,
+      teacher: school.teacher
+    }));
+    
+    console.log(`📊 إرجاع ${allSchools.length} مدرسة للبحث`);
+    res.json(allSchools);
+  } catch (error) {
+    console.error('❌ خطأ في الحصول على المدارس:', error);
+    res.status(500).json({ error: 'خطأ في السيرفر' });
+  }
+});
+
 // 📝 الحصول على اختبارات مدرسة
 app.get('/api/tests/:schoolId', (req, res) => {
   try {
