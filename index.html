@@ -1877,10 +1877,29 @@ const APIService = {
     return this.request('/schools');
   },
 
-  // 🏫 الحصول على جميع المدارس (للبحث)
-  async getAllSchools() {
-    return this.request('/all-schools');
-  },
+// 🏫 الحصول على جميع المدارس (للبحث - بدون مصادقة)
+async getAllSchools() {
+  try {
+    console.log('🔍 جاري جلب المدارس من الخادم...');
+    const response = await fetch(`${this.baseURL}/all-schools`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`خطأ في الخادم: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ تم جلب المدارس بنجاح:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ خطأ في جلب المدارس:', error);
+    throw error;
+  }
+},
 	
   // 📝 الاختبارات
   async getTests(schoolId) {
