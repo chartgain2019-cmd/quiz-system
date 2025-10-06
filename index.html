@@ -2158,7 +2158,95 @@ function updateGradeOptions(stage, targetElementId) {
         ErrorHandler.logError(error, 'updateGradeOptions');
     }
 }
+// ========== دوال التنقل الأساسية ==========
 
+function showStudentAccess() {
+    try {
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('studentAccessScreen').classList.remove('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'showStudentAccess');
+    }
+}
+
+function showTeacherLogin() {
+    try {
+        document.getElementById('teacherLoginScreen').classList.remove('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'showTeacherLogin');
+    }
+}
+
+function closeTeacherLogin() {
+    try {
+        document.getElementById('teacherLoginScreen').classList.add('hidden');
+        const loginError = document.getElementById('loginError');
+        if (loginError) loginError.classList.add('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'closeTeacherLogin');
+    }
+}
+
+function goBackToWelcome() {
+    try {
+        // تنظيف الموارد أولاً
+        ResourceManager.cleanup();
+        
+        // إخفاء جميع الشاشات
+        const screens = [
+            'studentAccessScreen',
+            'teacherDashboard', 
+            'testScreen',
+            'resultsScreen'
+        ];
+        
+        screens.forEach(screen => {
+            const element = document.getElementById(screen);
+            if (element) element.classList.add('hidden');
+        });
+        
+        // إظهار الشاشة الرئيسية
+        document.getElementById('welcomeScreen').classList.remove('hidden');
+        
+        // إعادة تعيين حقول البحث
+        const schoolSearch = document.getElementById('schoolSearch');
+        const searchResults = document.getElementById('schoolSearchResults');
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        
+        if (schoolSearch) schoolSearch.value = '';
+        if (searchResults) searchResults.classList.add('hidden');
+        if (selectedSchoolInfo) selectedSchoolInfo.classList.add('hidden');
+        
+        // تحديث الإحصائيات
+        updateWelcomeStatistics();
+    } catch (error) {
+        ErrorHandler.logError(error, 'goBackToWelcome');
+    }
+}
+
+function showTeacherSignup() {
+    try {
+        document.getElementById('teacherLoginScreen').classList.add('hidden');
+        document.getElementById('teacherSignupScreen').classList.remove('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'showTeacherSignup');
+    }
+}
+
+function closeTeacherSignup() {
+    try {
+        document.getElementById('teacherSignupScreen').classList.add('hidden');
+        const signupError = document.getElementById('signupError');
+        const signupSuccess = document.getElementById('signupSuccess');
+        const signupForm = document.getElementById('teacherSignupForm');
+        
+        if (signupError) signupError.classList.add('hidden');
+        if (signupSuccess) signupSuccess.classList.add('hidden');
+        if (signupForm) signupForm.reset();
+    } catch (error) {
+        ErrorHandler.logError(error, 'closeTeacherSignup');
+    }
+}
 // ========== دوال النظام الأساسية مع معالجة الأخطاء ==========
 
 // تحميل النتائج من التخزين المحلي
@@ -2883,6 +2971,7 @@ async function teacherSignup(event) {
         return false;
     }
 }
+	
 // ========== معالجة الأخطاء العالمية ==========
 window.addEventListener('error', function(event) {
     ErrorHandler.logError(event.error, 'Global Error Handler');
@@ -7208,7 +7297,139 @@ console.log('✅ تم تحميل جميع الدوال الأساسية');
 // إظهار رسالة نجاح التحميل
 setTimeout(() => {
     console.log('🎉 نظام الاختبارات التفاعلي جاهز للاستخدام');
-}, 1000);	
+}, 1000);
+
+// ========== دوال إضافية مطلوبة ==========
+
+// دالة تحديث قائمة الاختبارات للطلاب
+function refreshTestsList(schoolId) {
+    try {
+        const school = demoData.schools[schoolId];
+        if (!school) return;
+        
+        const testSelect = document.getElementById('testSelect');
+        if (!testSelect) return;
+        
+        testSelect.innerHTML = '<option value="">اختر الاختبار</option>';
+        
+        if (school.tests && school.tests.length > 0) {
+            school.tests.forEach((test, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${test.name} - ${test.subject} - ${test.grade}`;
+                option.dataset.testIndex = index;
+                testSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        ErrorHandler.logError(error, 'refreshTestsList');
+    }
+}
+
+// دالة مزامنة بيانات المدرسة مع الخادم
+async function syncSchoolData(schoolId) {
+    try {
+        const school = demoData.schools[schoolId];
+        if (!school) return;
+        
+        // مزامنة مع الخادم إذا كان متصلاً
+        const response = await fetch(`https://quiz-system-api.onrender.com/api/schools/${schoolId}/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(school)
+        });
+        
+        if (response.ok) {
+            console.log('✅ تمت مزامنة بيانات المدرسة مع الخادم');
+        }
+    } catch (error) {
+        console.log('ℹ️ لا يمكن الاتصال بالخادم للمزامنة، استخدام البيانات المحلية');
+    }
+}
+
+// دالة تحديث بيانات المدرسة
+function refreshSchoolData() {
+    try {
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        if (!selectedSchoolInfo) return;
+        
+        const schoolId = selectedSchoolInfo.dataset.schoolId;
+        if (!schoolId) return;
+        
+        // إعادة تحميل بيانات المدرسة
+        selectSearchedSchool(schoolId);
+        
+        showSuccessMessage('تم التحديث', 'تم تحديث بيانات المدرسة بنجاح');
+    } catch (error) {
+        ErrorHandler.logError(error, 'refreshSchoolData');
+    }
+}
+
+// دالة الإصلاح التلقائي للمعلم عند تسجيل الدخول
+function autoFixTeacherOnLogin() {
+    try {
+        if (!currentUser) return;
+        
+        console.log('🔧 الإصلاح التلقائي للمعلم:', currentUser.name);
+        
+        // التأكد من وجود مدرسة للمعلم
+        updateTeacherSchoolData();
+        
+        // التحقق من صلاحيات المسؤول
+        checkAdminPermissions();
+        
+        console.log('✅ اكتمل الإصلاح التلقائي');
+    } catch (error) {
+        ErrorHandler.logError(error, 'autoFixTeacherOnLogin');
+    }
+}
+
+// ========== تهيئة النظام عند التحميل ==========
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        console.log('🚀 بدء تحميل نظام الاختبارات التفاعلي...');
+        
+        // تهيئة أنظمة الاستقرار
+        SystemRecovery.initialize();
+        
+        // تهيئة نظام التخزين
+        StorageManager.initializeStorage();
+        
+        // تحميل البيانات المحفوظة
+        loadTeacherAccounts();
+        
+        // تحميل بيانات المدارس
+        const storedSchools = StorageManager.getItem('demoSchoolsData');
+        if (storedSchools) {
+            demoData.schools = storedSchools;
+            console.log('تم تحميل بيانات المدارس:', Object.keys(storedSchools).length, 'مدرسة');
+        }
+        
+        // تحميل المدارس للمعلمين الحاليين
+        loadSchoolsForExistingTeachers();
+        
+        // تحديث الإحصائيات
+        updateWelcomeStatistics();
+        
+        // إعداد مستمعي الأحداث
+        setupEventListeners();
+        
+        // التحقق من وجود جلسة سابقة واستعادتها
+        const previousSession = SystemRecovery.recoverPreviousSession();
+        if (previousSession && previousSession.testInProgress) {
+            console.log('تم اكتشاف جلسة اختبار سابقة:', previousSession);
+        }
+        
+        console.log('✅ تم تحميل النظام بنجاح');
+        
+    } catch (error) {
+        ErrorHandler.logError(error, 'DOMContentLoaded');
+    }
+});	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
