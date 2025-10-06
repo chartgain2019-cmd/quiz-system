@@ -1144,6 +1144,38 @@ function showStudentAccess() {
 function showTeacherLogin() {
     document.getElementById('teacherLoginScreen').classList.remove('hidden');
 }
+
+function showStudentAccess() {
+    document.getElementById('welcomeScreen').classList.add('hidden');
+    document.getElementById('studentAccessScreen').classList.remove('hidden');
+}
+
+function showTeacherLogin() {
+    document.getElementById('teacherLoginScreen').classList.remove('hidden');
+}
+
+// أضف هذه الدوال الإضافية
+function closeTeacherLogin() {
+    document.getElementById('teacherLoginScreen').classList.add('hidden');
+}
+
+function showTeacherSignup() {
+    document.getElementById('teacherLoginScreen').classList.add('hidden');
+    document.getElementById('teacherSignupScreen').classList.remove('hidden');
+}
+
+function closeTeacherSignup() {
+    document.getElementById('teacherSignupScreen').classList.add('hidden');
+}
+
+function goBackToWelcome() {
+    document.getElementById('studentAccessScreen').classList.add('hidden');
+    document.getElementById('teacherDashboard').classList.add('hidden');
+    document.getElementById('testScreen').classList.add('hidden');
+    document.getElementById('resultsScreen').classList.add('hidden');
+    document.getElementById('welcomeScreen').classList.remove('hidden');
+}
+	
 	
 // ========== أنظمة الاستقرار والأمان المحسنة ==========
 // ========== حل نهائي لأخطاء الامتدادات الخارجية ==========
