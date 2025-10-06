@@ -396,7 +396,11 @@ window.jsPDF = window.jspdf.jsPDF;
                     </div>
                 </div>
             </div>
-
+           <button onclick="refreshSchoolData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2">
+                🔄 تحديث
+           </button>
+        </div>
+    </div>
             <div class="mb-6">
                 <label class="block text-gray-800 font-bold mb-4">📝 اختر الاختبار</label>
                 <select id="testSelect" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:outline-none" onchange="selectTest()">
@@ -2282,7 +2286,7 @@ async function searchSchools() {
             matchingSchools.forEach(school => {
                 resultsHTML += `
                     <div class="p-4 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-all" 
-                         onclick="selectSearchedSchool('${school.id}')">
+                         onclick="('${school.id}')">
                         <div class="font-bold text-gray-800">${school.name}</div>
                         <div class="text-sm text-gray-600">${school.teacher || 'غير محدد'}</div>
                     </div>
@@ -2315,18 +2319,33 @@ async function selectSearchedSchool(schoolId) {
         console.log(`🏫 جاري تحميل بيانات المدرسة: ${schoolId}`);
         
         let school = null;
-        
-        // محاولة جلب البيانات من الخادم أولاً
-        try {
-            const response = await fetch(`https://quiz-system-api.onrender.com/api/tests/${schoolId}`);
-            if (response.ok) {
-                const tests = await response.json();
-                school = {
-                    id: schoolId,
-                    name: 'مدرسة الوليد بن عمارة الابتدائية',
-                    teacher: 'أ. عبدالله الشهري', 
-                    tests: tests
-                };
+
+// استخدام البيانات المحلية أولاً (حيث يتم حفظ الاختبارات الجديدة)
+school = demoData.schools[schoolId];
+
+if (school && school.tests && school.tests.length > 0) {
+    console.log('✅ استخدام البيانات المحلية التي تحتوي على الاختبارات الجديدة');
+} else {
+    console.log('❌ لا توجد بيانات محلية، جلب من الخادم...');
+    // محاولة جلب البيانات من الخادم كبديل
+    try {
+        const response = await fetch(`https://quiz-system-api.onrender.com/api/tests/${schoolId}`);
+        if (response.ok) {
+            const tests = await response.json();
+            school = {
+                id: schoolId,
+                name: 'مدرسة الوليد بن عمارة الابتدائية',
+                teacher: 'أ. عبدالله الشهري', 
+                tests: tests
+            };
+            // حفظ البيانات من الخادم في التخزين المحلي
+            demoData.schools[schoolId] = school;
+            StorageManager.setItem('demoSchoolsData', demoData.schools);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في جلب البيانات من الخادم:', error);
+    }
+}
                 console.log('✅ تم جلب الاختبارات من الخادم:', tests);
                 
                 // حفظ البيانات في demoData للمستقبل
@@ -4367,6 +4386,24 @@ function handleTestFormSubmit(event) {
         
         // حفظ البيانات
         const success = StorageManager.setItem('demoSchoolsData', demoData.schools);
+		if (success) {
+    console.log('✅ تم حفظ الاختبار الجديد في التخزين المحلي');
+    
+    // إذا كان الطالب في شاشة اختيار الاختبارات، قم بتحديث القائمة فوراً
+    const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+    if (selectedSchoolInfo && selectedSchoolInfo.classList.contains('hidden') === false) {
+        const schoolId = selectedSchoolInfo.dataset.schoolId;
+        if (schoolId) {
+            // تحديث قائمة الاختبارات بعد ثانيتين
+            setTimeout(() => {
+                refreshTestsList(schoolId);
+            }, 2000);
+        }
+    }
+    
+    // مزامنة مع الخادم إذا كان متصلاً
+    syncSchoolData(currentManagingTestSchoolId);
+}
         if (!success) {
             errorDiv.textContent = 'فشل في حفظ البيانات';
             errorDiv.classList.remove('hidden');
@@ -6743,7 +6780,166 @@ function cleanupCorruptedData() {
 
 // تشغيل التنظيف بعد تحميل الصفحة
 setTimeout(cleanupCorruptedData, 2000);
-	
+
+// دالة لمزامنة البيانات بين الخادم والتخزين المحلي
+async function syncSchoolData(schoolId) {
+    try {
+        console.log('🔄 مزامنة بيانات المدرسة مع الخادم...');
+        
+        const school = demoData.schools[schoolId];
+        if (!school) {
+            console.warn('❌ المدرسة غير موجودة محلياً للمزامنة');
+            return;
+        }
+        
+        // هنا يمكنك إضافة كود لإرسال البيانات إلى الخادم
+        // إذا كان الخادم يدعم تحديث البيانات
+        
+        console.log('✅ تمت مزامنة بيانات المدرسة');
+        
+    } catch (error) {
+        console.error('❌ خطأ في مزامنة البيانات:', error);
+    }
+}
+
+// دالة لتحديث قائمة الاختبارات مباشرة
+function refreshTestsList(schoolId) {
+    try {
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        const testSelect = document.getElementById('testSelect');
+        
+        if (!selectedSchoolInfo || !testSelect) return;
+        
+        const school = demoData.schools[schoolId];
+        if (!school || !school.tests) return;
+        
+        // تحديث قائمة الاختبارات
+        testSelect.innerHTML = '<option value="">اختر الاختبار</option>';
+        
+        if (school.tests.length > 0) {
+            school.tests.forEach((test, index) => {
+                if (test && test.name && test.subject && test.grade) {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${test.name} - ${test.subject} - ${test.grade}`;
+                    testSelect.appendChild(option);
+                }
+            });
+        }
+        
+        console.log('✅ تم تحديث قائمة الاختبارات مع البيانات الجديدة');
+        
+    } catch (error) {
+        console.error('❌ خطأ في تحديث قائمة الاختبارات:', error);
+    }
+}
+// ========== دوال التحديث والمزامنة الجديدة ==========
+
+// دالة لتحديث قائمة الاختبارات مباشرة
+function refreshTestsList(schoolId) {
+    try {
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        const testSelect = document.getElementById('testSelect');
+        
+        if (!selectedSchoolInfo || !testSelect) {
+            console.warn('❌ عناصر تحديث الاختبارات غير موجودة');
+            return;
+        }
+        
+        const school = demoData.schools[schoolId];
+        if (!school || !school.tests) {
+            console.warn('❌ لا توجد بيانات مدرسة للاختبارات');
+            return;
+        }
+        
+        // تحديث قائمة الاختبارات
+        testSelect.innerHTML = '<option value="">اختر الاختبار</option>';
+        
+        let validTestsCount = 0;
+        if (school.tests.length > 0) {
+            school.tests.forEach((test, index) => {
+                if (test && test.name && test.subject && test.grade) {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${test.name} - ${test.subject} - ${test.grade}`;
+                    testSelect.appendChild(option);
+                    validTestsCount++;
+                }
+            });
+        }
+        
+        console.log(`✅ تم تحديث قائمة الاختبارات - ${validTestsCount} اختبار صالح`);
+        
+    } catch (error) {
+        console.error('❌ خطأ في تحديث قائمة الاختبارات:', error);
+        ErrorHandler.logError(error, 'refreshTestsList');
+    }
+}
+
+// دالة لتحديث بيانات المدرسة يدوياً
+function refreshSchoolData() {
+    try {
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        if (!selectedSchoolInfo) {
+            showErrorMessage('خطأ', 'لم يتم تحديد مدرسة');
+            return;
+        }
+        
+        const schoolId = selectedSchoolInfo.dataset.schoolId;
+        if (!schoolId) {
+            showErrorMessage('خطأ', 'معرف المدرسة غير موجود');
+            return;
+        }
+        
+        console.log('🔄 تحديث بيانات المدرسة يدوياً...');
+        
+        // إعادة تحميل البيانات من التخزين المحلي
+        const school = demoData.schools[schoolId];
+        if (school) {
+            refreshTestsList(schoolId);
+            showSuccessMessage('تم التحديث', 'تم تحديث قائمة الاختبارات بنجاح');
+        } else {
+            showErrorMessage('خطأ', 'لم يتم العثور على بيانات المدرسة');
+        }
+        
+    } catch (error) {
+        console.error('❌ خطأ في تحديث البيانات:', error);
+        showErrorMessage('خطأ', 'فشل في تحديث البيانات');
+    }
+}
+
+// دالة لمزامنة البيانات بين الخادم والتخزين المحلي
+async function syncSchoolData(schoolId) {
+    try {
+        console.log('🔄 مزامنة بيانات المدرسة مع الخادم...');
+        
+        const school = demoData.schools[schoolId];
+        if (!school) {
+            console.warn('❌ المدرسة غير موجودة محلياً للمزامنة');
+            return;
+        }
+        
+        // هنا يمكنك إضافة كود لإرسال البيانات إلى الخادم
+        // إذا كان الخادم يدعم تحديث البيانات
+        console.log('📤 جاهز لإرسال بيانات المدرسة إلى الخادم:', school.tests.length, 'اختبار');
+        
+        // محاكاة الإرسال إلى الخادم (يمكنك استبدال هذا بالكود الفعلي)
+        try {
+            // const response = await fetch(`https://quiz-system-api.onrender.com/api/tests/${schoolId}`, {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(school.tests)
+            // });
+            console.log('✅ تمت مزامنة بيانات المدرسة (محاكاة)');
+        } catch (syncError) {
+            console.warn('⚠️ فشل في مزامنة البيانات مع الخادم:', syncError);
+        }
+        
+    } catch (error) {
+        console.error('❌ خطأ في مزامنة البيانات:', error);
+        ErrorHandler.logError(error, 'syncSchoolData');
+    }
+}	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
