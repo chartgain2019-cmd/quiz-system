@@ -1900,7 +1900,10 @@ async getAllSchools() {
     throw error;
   }
 },
-	
+// 📊 الحصول على الإحصائيات العامة
+async getStatistics() {
+  return this.request('/statistics');
+},	
   // 📝 الاختبارات
   async getTests(schoolId) {
     return this.request(`/tests/${schoolId}`);
@@ -6123,15 +6126,27 @@ function deleteSchoolResults(schoolId) {
 
 // ========== تحديث الإحصائيات ==========
 
-function updateWelcomeStatistics() {
+async function updateWelcomeStatistics() {
     try {
-        // حساب الإحصائيات الحقيقية من البيانات
-        const totalSchools = Object.keys(demoData.schools).length;
-        const totalTeachers = Object.keys(demoData.users).length;
-        const totalTests = Object.values(demoData.schools).reduce((sum, school) => 
-            sum + (school.tests ? school.tests.length : 0), 0
-        );
-        const totalResults = loadResults().length;
+        console.log('📊 جاري تحديث الإحصائيات...');
+        
+        let stats;
+        try {
+            // محاولة جلب الإحصائيات من الخادم
+            stats = await APIService.getStatistics();
+            console.log('✅ الإحصائيات من الخادم:', stats);
+        } catch (error) {
+            console.error('❌ فشل في جلب الإحصائيات من الخادم:', error);
+            // استخدام البيانات المحلية كنسخة احتياطية
+            stats = {
+                totalSchools: Object.keys(demoData.schools).length,
+                totalTeachers: Object.keys(demoData.users).length,
+                totalTests: Object.values(demoData.schools).reduce((sum, school) => 
+                    sum + (school.tests ? school.tests.length : 0), 0
+                ),
+                totalResults: loadResults().length
+            };
+        }
         
         // تحديث العناصر
         const elements = {
@@ -6141,12 +6156,15 @@ function updateWelcomeStatistics() {
             statsResults: document.getElementById('statsResults')
         };
         
-        if (elements.statsSchools) elements.statsSchools.textContent = totalSchools;
-        if (elements.statsTeachers) elements.statsTeachers.textContent = totalTeachers;
-        if (elements.statsTests) elements.statsTests.textContent = totalTests;
-        if (elements.statsResults) elements.statsResults.textContent = totalResults;
+        if (elements.statsSchools) elements.statsSchools.textContent = stats.totalSchools;
+        if (elements.statsTeachers) elements.statsTeachers.textContent = stats.totalTeachers;
+        if (elements.statsTests) elements.statsTests.textContent = stats.totalTests;
+        if (elements.statsResults) elements.statsResults.textContent = stats.totalResults;
+        
+        console.log('📈 الإحصائيات المحدثة:', stats);
+        
     } catch (error) {
-        ErrorHandler.logError(error, 'updateWelcomeStatistics');
+        console.error('❌ خطأ في تحديث الإحصائيات:', error);
     }
 }
 
@@ -6195,6 +6213,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        console.log('🚀 بدء تحميل نظام الاختبارات التفاعلي...');
+        
+        // تهيئة أنظمة الاستقرار
+        SystemRecovery.initialize();
+        
+        // تهيئة نظام التخزين
+        StorageManager.initializeStorage();
+        
+        // تحميل البيانات المحفوظة
+        loadTeacherAccounts();
+        
+        // تحميل بيانات المدارس
+        const storedSchools = StorageManager.getItem('demoSchoolsData');
+        if (storedSchools) {
+            demoData.schools = storedSchools;
+            console.log('تم تحميل بيانات المدارس:', Object.keys(storedSchools).length, 'مدرسة');
+        }
+        
+        // تحميل المدارس للمعلمين الحاليين
+        loadSchoolsForExistingTeachers();
+        
+        // تحديث الإحصائيات من الخادم ← أضف هذا السطر
+        updateWelcomeStatistics();
+        
+        // إعداد مستمعي الأحداث
+        setupEventListeners();
+        
+        // التحقق من وجود جلسة سابقة واستعادتها
+        const previousSession = SystemRecovery.recoverPreviousSession();
+        if (previousSession && previousSession.testInProgress) {
+            console.log('تم اكتشاف جلسة اختبار سابقة:', previousSession);
+        }
+        
+        console.log('✅ تم تحميل النظام بنجاح');
+        
+    } catch (error) {
+        ErrorHandler.logError(error, 'DOMContentLoaded');
+    }
+});
+	
 function setupEventListeners() {
     try {
         // إعداد مستمعي الأحداث للنوافذ المنبثقة
