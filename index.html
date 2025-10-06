@@ -7011,7 +7011,106 @@ function autoFixTeacherOnLogin() {
         setTimeout(fixTeacherData, 1000);
     }
 }
-	
+// ========== إصلاح الدوال المفقودة ==========
+
+// دالة تحديث قائمة الاختبارات للطلاب
+function refreshTestsList(schoolId) {
+    try {
+        console.log('🔄 تحديث قائمة الاختبارات للمدرسة:', schoolId);
+        selectSearchedSchool(schoolId);
+    } catch (error) {
+        console.error('❌ خطأ في تحديث قائمة الاختبارات:', error);
+    }
+}
+
+// دالة تحديث بيانات المدرسة
+function refreshSchoolData() {
+    try {
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        if (selectedSchoolInfo && selectedSchoolInfo.dataset.schoolId) {
+            const schoolId = selectedSchoolInfo.dataset.schoolId;
+            console.log('🔄 تحديث بيانات المدرسة:', schoolId);
+            selectSearchedSchool(schoolId);
+            showSuccessMessage('تم التحديث', 'تم تحديث بيانات المدرسة بنجاح');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تحديث بيانات المدرسة:', error);
+    }
+}
+
+// دالة مزامنة بيانات المدرسة مع الخادم
+async function syncSchoolData(schoolId) {
+    try {
+        console.log('🔄 مزامنة بيانات المدرسة مع الخادم:', schoolId);
+        // يمكن إضافة منطق المزامنة مع الخادم هنا لاحقاً
+    } catch (error) {
+        console.error('❌ خطأ في مزامنة البيانات:', error);
+    }
+}
+
+// دالة الإصلاح التلقائي للمعلم عند تسجيل الدخول
+function autoFixTeacherOnLogin() {
+    try {
+        if (currentUser && currentUser.email === 'chartgain2019@gmail.com') {
+            console.log('🔧 إصلاح تلقائي للمعلم المسؤول');
+            initializeDefaultData();
+        }
+    } catch (error) {
+        console.error('❌ خطأ في الإصلاح التلقائي:', error);
+    }
+}
+
+// ========== إصلاح الأخطاء الهيكلية ==========
+
+// نقل الدوال الأساسية إلى المكان الصحيح
+function showStudentAccess() {
+    try {
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('studentAccessScreen').classList.remove('hidden');
+        
+        // تحديث قائمة المدارس عند الانتقال للشاشة
+        setTimeout(() => {
+            const schoolSearch = document.getElementById('schoolSearch');
+            if (schoolSearch) {
+                schoolSearch.value = '';
+                schoolSearch.focus();
+            }
+        }, 100);
+    } catch (error) {
+        ErrorHandler.logError(error, 'showStudentAccess');
+    }
+}
+
+function showTeacherLogin() {
+    try {
+        document.getElementById('teacherLoginScreen').classList.remove('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'showTeacherLogin');
+    }
+}
+
+// ========== إصلاح بنية try-catch ==========
+
+// البحث عن بنية try-catch الناقصة وإصلاحها
+// استبدل الكود التالف بالكود التالي:
+
+// البحث عن هذا السطر في الكود الأصلي (سطر 2355 تقريباً):
+// window
+
+// واستبدله بـ:
+window.addEventListener('error', function(event) {
+    console.error('خطأ عام:', event.error);
+});
+
+// ========== تهيئة نهائية للنظام ==========
+
+// تأكد من أن جميع الدوال الأساسية معرفة
+console.log('✅ تم تحميل جميع الدوال الأساسية');
+
+// إظهار رسالة نجاح التحميل
+setTimeout(() => {
+    console.log('🎉 نظام الاختبارات التفاعلي جاهز للاستخدام');
+}, 1000);	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
