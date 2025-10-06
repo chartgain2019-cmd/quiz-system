@@ -4,36 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الاختبارات التفاعلي</title>
-    <!-- ⭐⭐ الحل النهائي لأخطاء hotkeys ⭐⭐ -->
+    
+    <!-- ⭐⭐ الحل الجذري لأخطاء hotkeys - يتحمّل فوراً ⭐⭐ -->
     <script>
-        // ========== الحل النهائي لأخطاء الامتدادات ==========
+        // تعريف hotkeys فوري ومنع أخطاء الامتدادات
         (function() {
-            if (typeof hotkeys === 'undefined') {
-                window.hotkeys = function() {
-                    var self = {
-                        filter: function() { return self; },
-                        key: function() { return self; },
-                        unbind: function() { return self; },
-                        isPressed: function() { return false; },
-                        getPressedKeyCodes: function() { return []; },
-                        shift: function() { return self; },
-                        ctrl: function() { return self; },
-                        alt: function() { return self; }
-                    };
-                    return self;
-                };
-                
-                // تعريف كدالة مباشرة أيضاً
-                window.hotkeys = Object.assign(window.hotkeys, {
-                    filter: function() { return window.hotkeys; },
-                    unbind: function() { return window.hotkeys; }
-                });
+            'use strict';
+            // تعريف hotkeys ككائن وكدالة في نفس الوقت
+            var hotkeysInstance = function() {
+                return hotkeysInstance;
+            };
+            
+            // إضافة الخصائص للكائن
+            Object.assign(hotkeysInstance, {
+                filter: function() { return hotkeysInstance; },
+                key: function() { return hotkeysInstance; },
+                unbind: function() { return hotkeysInstance; },
+                isPressed: function() { return false; },
+                getPressedKeyCodes: function() { return []; },
+                shift: function() { return hotkeysInstance; },
+                ctrl: function() { return hotkeysInstance; },
+                alt: function() { return hotkeysInstance; },
+                meta: function() { return hotkeysInstance; }
+            });
+            
+            // تعريف global فوري
+            if (typeof window !== 'undefined') {
+                window.hotkeys = hotkeysInstance;
             }
+            if (typeof global !== 'undefined') {
+                global.hotkeys = hotkeysInstance;
+            }
+            
+            console.log('✅ تم تحميل hotkeys البديلة للامتدادات');
         })();
     </script>
-	
+    
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-
+    <!-- باقي المكتبات -->
 	<!-- إضافة مكتبات التصدير -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
