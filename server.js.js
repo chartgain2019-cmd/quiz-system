@@ -10,7 +10,56 @@ const JWT_SECRET = process.env.JWT_SECRET || 'quiz-system-secret-2024';
 app.use(cors());
 app.use(bodyParser.json());
 
-// قاعدة بيانات مبسطة
+// نظام استعادة البيانات التلقائي
+function initializeDatabase() {
+  console.log('🔧 جاري تهيئة قاعدة البيانات...');
+  
+  // إعادة تعيين البيانات إذا كانت تالفة
+  if (!database.teachers || typeof database.teachers !== 'object') {
+    database.teachers = {};
+    console.log('🔄 تم إعادة تعيين بيانات المعلمين');
+  }
+  
+  if (!database.schools || typeof database.schools !== 'object') {
+    database.schools = {};
+    console.log('🔄 تم إعادة تعيين بيانات المدارس');
+  }
+  
+  if (!database.results || !Array.isArray(database.results)) {
+    database.results = [];
+    console.log('🔄 تم إعادة تعيين بيانات النتائج');
+  }
+  
+  // إضافة الحساب الافتراضي إذا لم يكن موجوداً
+  if (!database.teachers['chartgain2019@gmail.com']) {
+    database.teachers['chartgain2019@gmail.com'] = {
+      email: 'chartgain2019@gmail.com',
+      password: '123456',
+      name: 'أ. عبدالله الشهري',
+      school: 'مدرسة الوليد بن عمارة الابتدائية',
+      stage: 'ابتدائية'
+    };
+    console.log('✅ تم إضافة الحساب الافتراضي');
+  }
+  
+  // إضافة المدرسة الافتراضية إذا لم تكن موجودة
+  if (!database.schools['school_default']) {
+    database.schools['school_default'] = {
+      id: 'school_default',
+      name: 'مدرسة الوليد بن عمارة الابتدائية',
+      teacher: 'أ. عبدالله الشهري',
+      tests: []
+    };
+    console.log('✅ تم إضافة المدرسة الافتراضية');
+  }
+  
+  console.log('✅ تمت تهيئة قاعدة البيانات بنجاح');
+}
+
+// استدعاء التهيئة عند بدء التشغيل
+initializeDatabase();
+
+// قاعدة بيانات مصححة - إصدار جديد
 let database = {
   teachers: {
     'chartgain2019@gmail.com': {
@@ -21,7 +70,36 @@ let database = {
       stage: 'ابتدائية'
     }
   },
-  schools: {},
+  schools: {
+    'school_default': {
+      id: 'school_default',
+      name: 'مدرسة الوليد بن عمارة الابتدائية', 
+      teacher: 'أ. عبدالله الشهري',
+      tests: [
+        {
+          id: 'test_1',
+          name: 'اختبار الرياضيات الفصل الأول',
+          subject: 'الرياضيات',
+          grade: 'الرابع ابتدائي',
+          timerPerQuestion: 30,
+          difficulty: 'متوسط',
+          description: 'اختبار الفصل الأول في مادة الرياضيات',
+          questions: [
+            {
+              question: 'ما هو ناتج 15 + 27؟',
+              options: ['42', '32', '52', '37'],
+              correct: 0
+            },
+            {
+              question: 'ما هو العدد الذي يمثل خمسة وعشرين؟',
+              options: ['52', '25', '205', '250'],
+              correct: 1
+            }
+          ]
+        }
+      ]
+    }
+  },
   results: []
 };
 
@@ -184,6 +262,18 @@ app.get('/', (req, res) => {
       email: 'chartgain2019@gmail.com',
       password: '123456'
     }
+  });
+});
+
+// 🔍 فحص حالة البيانات
+app.get('/api/debug/data', (req, res) => {
+  res.json({
+    teachers_count: Object.keys(database.teachers).length,
+    schools_count: Object.keys(database.schools).length,
+    results_count: database.results.length,
+    teachers: Object.keys(database.teachers),
+    schools: Object.keys(database.schools),
+    status: 'يعمل'
   });
 });
 
