@@ -387,6 +387,29 @@ app.get('/', (req, res) => {
   });
 });
 
+// 📊 الحصول على إحصائيات عامة (للواجهة الرئيسية)
+app.get('/api/statistics', (req, res) => {
+  try {
+    const stats = {
+      totalSchools: Object.keys(database.schools).length,
+      totalTeachers: Object.keys(database.teachers).length,
+      totalTests: Object.values(database.schools).reduce((sum, school) => 
+        sum + (school.tests ? school.tests.length : 0), 0
+      ),
+      totalResults: database.results.length,
+      // إحصائيات إضافية
+      activeTests: Object.values(database.schools).reduce((sum, school) => 
+        sum + (school.tests ? school.tests.filter(test => test.questions && test.questions.length > 0).length : 0), 0
+      )
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('❌ خطأ في الإحصائيات:', error);
+    res.status(500).json({ error: 'خطأ في السيرفر' });
+  }
+});
+
 // التهيئة عند البدء
 initializeDatabase();
 
