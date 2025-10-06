@@ -1815,6 +1815,7 @@ const APIService = {
   baseURL: 'https://quiz-system-api.onrender.com/api',
   async request(endpoint, options = {}) {
     try {
+		 console.log(`🔄 طلب API: ${this.baseURL}${endpoint}`); // ⬅️ أضف هذا السطر
       const token = localStorage.getItem('authToken');
       const headers = {
         'Content-Type': 'application/json',
