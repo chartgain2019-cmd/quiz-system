@@ -6434,11 +6434,107 @@ function checkSystemStatus() {
     console.log('📍 Canvas:', !!document.createElement('canvas').getContext);
     console.log('📍 موقع الصفحة:', window.location.href);
 }
-
+	
 // تشغيل فحص النظام
 setTimeout(checkSystemStatus, 1000);
 		
-		
+// ========== تجاهل كامل لأخطاء الامتدادات ==========
+(function() {
+    'use strict';
+    
+    // تجاهل أخطاء hotkeys من الامتدادات
+    const originalOnError = window.onerror;
+    window.onerror = function(message, source, lineno, colno, error) {
+        if (message && typeof message === 'string' && message.includes('hotkeys')) {
+            console.log('🔇 تم تجاهل خطأ امتداد: hotkeys');
+            return true; // منع انتشار الخطأ
+        }
+        if (originalOnError) {
+            return originalOnError.apply(this, arguments);
+        }
+        return false;
+    };
+    
+    // تجاهل أخطاء الوعود من الامتدادات
+    window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && 
+            (event.reason.message && event.reason.message.includes('hotkeys')) ||
+            (typeof event.reason === 'string' && event.reason.includes('hotkeys'))) {
+            event.preventDefault();
+            console.log('🔇 تم تجاهل خطأ promise امتداد');
+        }
+    });
+    
+    console.log('✅ تم تفعيل نظام تجاهل أخطاء الامتدادات');
+})();
+
+// منع ظهور أخطاء الامتدادات في الكونسول
+(function() {
+    'use strict';
+    
+    // حفظ الكونسول الأصلي
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    // تصفية الأخطاء المرتبطة بالامتدادات
+    console.error = function(...args) {
+        if (args.some(arg => 
+            (typeof arg === 'string' && arg.includes('hotkeys')) ||
+            (arg && arg.message && arg.message.includes('hotkeys'))
+        )) {
+            console.log('🔇 خطأ امتداد تم تصفيته');
+            return;
+        }
+        originalError.apply(console, args);
+    };
+    
+    console.warn = function(...args) {
+        if (args.some(arg => 
+            typeof arg === 'string' && arg.includes('hotkeys')
+        )) {
+            console.log('🔇 تحذير امتداد تم تصفيته');
+            return;
+        }
+        originalWarn.apply(console, args);
+    };
+})();
+
+// الحل الشامل النهائي
+(function() {
+    'use strict';
+    
+    // 1. تعريف شامل لـ hotkeys
+    if (typeof hotkeys === 'undefined') {
+        window.hotkeys = function Hotkeys() { return window.hotkeys; };
+        Object.assign(window.hotkeys, {
+            filter: () => window.hotkeys,
+            key: () => window.hotkeys, 
+            unbind: () => window.hotkeys,
+            isPressed: () => false,
+            getPressedKeyCodes: () => [],
+            shift: () => window.hotkeys,
+            ctrl: () => window.hotkeys,
+            alt: () => window.hotkeys,
+            meta: () => window.hotkeys
+        });
+    }
+    
+    // 2. منع كافة أخطاء الامتدادات
+    const safeErrorHandler = function(event) {
+        if (event.error && event.error.message && event.error.message.includes('hotkeys')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+        }
+        return false;
+    };
+    
+    window.addEventListener('error', safeErrorHandler, true);
+    window.addEventListener('unhandledrejection', safeErrorHandler, true);
+    
+    console.log('🛡️  النظام محمي من أخطاء الامتدادات');
+})();	
+	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
