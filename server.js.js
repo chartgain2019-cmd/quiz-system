@@ -62,7 +62,47 @@ app.post('/api/login', (req, res) => {
     res.status(500).json({ error: 'خطأ في السيرفر' });
   }
 });
+// 🔐 تغيير كلمة المرور
+app.post('/api/change-password', (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      return res.status(401).json({ error: 'مصادقة مطلوبة' });
+    }
 
+    const token = authHeader.split(' ')[1];
+    const user = jwt.verify(token, JWT_SECRET);
+    
+    const { currentPassword, newPassword } = req.body;
+    const teacher = database.teachers[user.email];
+
+    if (!teacher) {
+      return res.status(404).json({ error: 'المستخدم غير موجود' });
+    }
+    
+    // تحقق من كلمة المرور الحالية
+    if (teacher.password !== currentPassword) {
+      return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+    }
+    
+    // تحقق من قوة كلمة المرور الجديدة
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
+    }
+    
+    // تحديث كلمة المرور
+    teacher.password = newPassword;
+    
+    res.json({
+      success: true,
+      message: 'تم تغيير كلمة المرور بنجاح'
+    });
+    
+  } catch (error) {
+    console.error('خطأ في تغيير كلمة المرور:', error);
+    res.status(500).json({ error: 'خطأ في السيرفر' });
+  }
+});
 // 🔐 إنشاء حساب جديد
 app.post('/api/register', (req, res) => {
   try {
