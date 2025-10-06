@@ -1135,6 +1135,16 @@ window.jsPDF = window.jspdf.jsPDF;
 </div>
 
 <script>
+
+function showStudentAccess() {
+    document.getElementById('welcomeScreen').classList.add('hidden');
+    document.getElementById('studentAccessScreen').classList.remove('hidden');
+}
+
+function showTeacherLogin() {
+    document.getElementById('teacherLoginScreen').classList.remove('hidden');
+}
+	
 // ========== أنظمة الاستقرار والأمان المحسنة ==========
 // ========== حل نهائي لأخطاء الامتدادات الخارجية ==========
 // تعريف hotkeys فارغ لمنع أخطاء الامتدادات
