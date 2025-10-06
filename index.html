@@ -2883,7 +2883,102 @@ async function teacherSignup(event) {
         return false;
     }
 }
+// ========== معالجة الأخطاء العالمية ==========
+window.addEventListener('error', function(event) {
+    ErrorHandler.logError(event.error, 'Global Error Handler');
+});
 
+window.addEventListener('unhandledrejection', function(event) {
+    ErrorHandler.logError(event.reason, 'Unhandled Promise Rejection');
+});
+
+// ========== دوال إضافية مطلوبة ==========
+
+// دالة تحديث قائمة الاختبارات للطلاب
+function refreshTestsList(schoolId) {
+    try {
+        const school = demoData.schools[schoolId];
+        if (!school) return;
+        
+        const testSelect = document.getElementById('testSelect');
+        if (!testSelect) return;
+        
+        testSelect.innerHTML = '<option value="">اختر الاختبار</option>';
+        
+        if (school.tests && school.tests.length > 0) {
+            school.tests.forEach((test, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${test.name} - ${test.subject} - ${test.grade}`;
+                option.dataset.testIndex = index;
+                testSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        ErrorHandler.logError(error, 'refreshTestsList');
+    }
+}
+
+// دالة مزامنة بيانات المدرسة مع الخادم
+async function syncSchoolData(schoolId) {
+    try {
+        const school = demoData.schools[schoolId];
+        if (!school) return;
+        
+        // مزامنة مع الخادم إذا كان متصلاً
+        const response = await fetch(`https://quiz-system-api.onrender.com/api/schools/${schoolId}/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(school)
+        });
+        
+        if (response.ok) {
+            console.log('✅ تمت مزامنة بيانات المدرسة مع الخادم');
+        }
+    } catch (error) {
+        console.log('ℹ️ لا يمكن الاتصال بالخادم للمزامنة، استخدام البيانات المحلية');
+    }
+}
+
+// دالة تحديث بيانات المدرسة
+function refreshSchoolData() {
+    try {
+        const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+        if (!selectedSchoolInfo) return;
+        
+        const schoolId = selectedSchoolInfo.dataset.schoolId;
+        if (!schoolId) return;
+        
+        // إعادة تحميل بيانات المدرسة
+        selectSearchedSchool(schoolId);
+        
+        showSuccessMessage('تم التحديث', 'تم تحديث بيانات المدرسة بنجاح');
+    } catch (error) {
+        ErrorHandler.logError(error, 'refreshSchoolData');
+    }
+}
+
+// دالة الإصلاح التلقائي للمعلم عند تسجيل الدخول
+function autoFixTeacherOnLogin() {
+    try {
+        if (!currentUser) return;
+        
+        console.log('🔧 الإصلاح التلقائي للمعلم:', currentUser.name);
+        
+        // التأكد من وجود مدرسة للمعلم
+        updateTeacherSchoolData();
+        
+        // التحقق من صلاحيات المسؤول
+        checkAdminPermissions();
+        
+        console.log('✅ اكتمل الإصلاح التلقائي');
+    } catch (error) {
+        ErrorHandler.logError(error, 'autoFixTeacherOnLogin');
+    }
+}
 // تسجيل دخول المعلم - النسخة المعدلة للخادم
 async function teacherLogin(event) {
     try {
