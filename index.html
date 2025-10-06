@@ -1872,11 +1872,16 @@ const APIService = {
     return result;
   },
 
-  // 🏫 المدارس
+ // 🏫 المدارس
   async getSchools() {
     return this.request('/schools');
   },
 
+ // 🏫 الحصول على جميع المدارس
+  async getAllSchools() {
+    return this.request('/all-schools');
+  },
+	
   // 📝 الاختبارات
   async getTests(schoolId) {
     return this.request(`/tests/${schoolId}`);
@@ -2115,8 +2120,7 @@ function saveResult(result) {
     }
 }
 
-// وظيفة البحث عن المدارس
-function searchSchools() {
+async function searchSchools() {
     try {
         const searchTerm = document.getElementById('schoolSearch')?.value.toLowerCase().trim() || '';
         const resultsContainer = document.getElementById('schoolSearchResults');
@@ -2131,8 +2135,12 @@ function searchSchools() {
             return;
         }
         
-        // البحث فقط في اسم المدرسة والمعلم
-        const matchingSchools = Object.values(demoData.schools).filter(school => 
+        // استخدام API للبحث في المدارس
+        console.log('🔍 جاري البحث عن المدارس...');
+        const allSchools = await APIService.getAllSchools();
+        
+        // البحث في اسم المدرسة والمعلم
+        const matchingSchools = allSchools.filter(school => 
             school.name.toLowerCase().includes(searchTerm) || 
             school.teacher.toLowerCase().includes(searchTerm)
         );
@@ -2156,50 +2164,108 @@ function searchSchools() {
         resultsContainer.innerHTML = resultsHTML;
         resultsContainer.classList.remove('hidden');
     } catch (error) {
-        ErrorHandler.logError(error, 'searchSchools');
+        console.error('❌ خطأ في البحث:', error);
+        // استخدام البيانات المحلية كنسخة احتياطية
+        fallbackSearchSchools(searchTerm);
     }
 }
 
-// وظيفة اختيار مدرسة من نتائج البحث
-function selectSearchedSchool(schoolId) {
+// نسخة احتياطية باستخدام البيانات المحلية
+function fallbackSearchSchools(searchTerm) {
+    const resultsContainer = document.getElementById('schoolSearchResults');
+    const matchingSchools = Object.values(demoData.schools).filter(school => 
+        school.name.toLowerCase().includes(searchTerm) || 
+        school.teacher.toLowerCase().includes(searchTerm)
+    );
+    
+    if (matchingSchools.length === 0) {
+        resultsContainer.innerHTML = '<div class="p-4 text-center text-gray-500">لا توجد نتائج مطابقة</div>';
+        resultsContainer.classList.remove('hidden');
+        return;
+    }
+    
+    let resultsHTML = '';
+    matchingSchools.forEach(school => {
+        resultsHTML += `
+            <div class="p-4 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-all" onclick="selectSearchedSchool('${school.id}')">
+                <div class="font-bold text-gray-800">${school.name}</div>
+                <div class="text-sm text-gray-600">${school.teacher}</div>
+            </div>
+        `;
+    });
+    
+    resultsContainer.innerHTML = resultsHTML;
+    resultsContainer.classList.remove('hidden');
+}
+
+async function selectSearchedSchool(schoolId) {
     try {
-        const school = demoData.schools[schoolId];
-        if (!school) {
-            console.warn('School not found:', schoolId);
-            return;
-        }
-        
         const schoolSearch = document.getElementById('schoolSearch');
         const searchResults = document.getElementById('schoolSearchResults');
         const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
         
-        if (schoolSearch) schoolSearch.value = school.name;
+        if (schoolSearch) schoolSearch.value = '';
         if (searchResults) searchResults.classList.add('hidden');
         
-        // تخزين معرف المدرسة المختارة في حقل مخفي
-        if (selectedSchoolInfo) {
-            selectedSchoolInfo.dataset.schoolId = schoolId;
+        // استخدام API للحصول على بيانات المدرسة
+        console.log(`🏫 جاري تحميل بيانات المدرسة: ${schoolId}`);
+        const schools = await APIService.getSchools();
+        const school = schools.find(s => s.id === schoolId);
+        
+        if (!school) {
+            console.warn('المدرسة غير موجودة في الخادم:', schoolId);
+            // استخدام البيانات المحلية كنسخة احتياطية
+            const localSchool = demoData.schools[schoolId];
+            if (!localSchool) {
+                alert('المدرسة غير موجودة');
+                return;
+            }
+            displaySchoolInfo(localSchool);
+            return;
+        }
+        
+        displaySchoolInfo(school);
+        
+    } catch (error) {
+        console.error('❌ خطأ في تحميل بيانات المدرسة:', error);
+        // استخدام البيانات المحلية كنسخة احتياطية
+        const localSchool = demoData.schools[schoolId];
+        if (localSchool) {
+            displaySchoolInfo(localSchool);
+        } else {
+            alert('خطأ في تحميل بيانات المدرسة');
+        }
+    }
+}
+
+// دالة مساعدة لعرض معلومات المدرسة
+function displaySchoolInfo(school) {
+    const selectedSchoolInfo = document.getElementById('selectedSchoolInfo');
+    
+    if (selectedSchoolInfo) {
+        selectedSchoolInfo.dataset.schoolId = school.id;
+        
+        // عرض معلومات المدرسة المختارة
+        selectedSchoolInfo.classList.remove('hidden');
+        document.getElementById('chosenSchoolName').textContent = school.name;
+        document.getElementById('chosenTeacher').textContent = school.teacher;
+        
+        // تحديث قائمة الاختبارات
+        const testSelect = document.getElementById('testSelect');
+        if (testSelect) {
+            testSelect.innerHTML = '<option value="">اختر الاختبار</option>';
             
-            // عرض معلومات المدرسة المختارة
-            selectedSchoolInfo.classList.remove('hidden');
-            document.getElementById('chosenSchoolName').textContent = school.name;
-            document.getElementById('chosenTeacher').textContent = school.teacher;
-            
-            // تحديث قائمة الاختبارات
-            const testSelect = document.getElementById('testSelect');
-            if (testSelect) {
-                testSelect.innerHTML = '<option value="">اختر الاختبار</option>';
-                
+            if (school.tests && school.tests.length > 0) {
                 school.tests.forEach((test, index) => {
                     const option = document.createElement('option');
                     option.value = index;
                     option.textContent = `${test.name} - ${test.subject} - ${test.grade}`;
                     testSelect.appendChild(option);
                 });
+            } else {
+                testSelect.innerHTML = '<option value="">لا توجد اختبارات</option>';
             }
         }
-    } catch (error) {
-        ErrorHandler.logError(error, 'selectSearchedSchool');
     }
 }
 
