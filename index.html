@@ -384,23 +384,27 @@ window.jsPDF = window.jspdf.jsPDF;
 
         <div id="selectedSchoolInfo" class="hidden bg-white rounded-3xl shadow-xl p-8">
             <div class="bg-green-50 p-6 rounded-2xl mb-6 border border-green-200">
-                <h3 class="text-xl font-bold text-green-800 mb-4">المدرسة المختارة</h3>
-                <div class="grid md:grid-cols-2 gap-4">
+                <div class="flex justify-between items-center">
                     <div>
-                        <span class="text-green-600 font-semibold">🏫 اسم المدرسة:</span>
-                        <span id="chosenSchoolName" class="font-bold text-gray-800 mr-2"></span>
+                        <h3 class="text-xl font-bold text-green-800 mb-2">المدرسة المختارة</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-green-600 font-semibold">🏫 اسم المدرسة:</span>
+                                <span id="chosenSchoolName" class="font-bold text-gray-800 mr-2"></span>
+                            </div>
+                            <div>
+                                <span class="text-green-600 font-semibold">👨‍🏫 المعلم:</span>
+                                <span id="chosenTeacher" class="font-bold text-gray-800 mr-2"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-green-600 font-semibold">👨‍🏫 المعلم:</span>
-                        <span id="chosenTeacher" class="font-bold text-gray-800 mr-2"></span>
-                    </div>
+                    <button onclick="refreshSchoolData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2">
+                        🔄 تحديث
+                    </button>
                 </div>
             </div>
-           <button onclick="refreshSchoolData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2">
-                🔄 تحديث
-           </button>
-        </div>
-    </div>
+
+            <!-- باقي محتوى المدرسة -->
             <div class="mb-6">
                 <label class="block text-gray-800 font-bold mb-4">📝 اختر الاختبار</label>
                 <select id="testSelect" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:outline-none" onchange="selectTest()">
@@ -438,7 +442,6 @@ window.jsPDF = window.jspdf.jsPDF;
                         <label class="block text-gray-700 font-semibold mb-2">اسم الطالب *</label>
                         <input type="text" id="studentName" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none" placeholder="أدخل اسم الطالب">
                     </div>
-                    <!-- إضافة الصف الدراسي بعد اسم الطالب -->
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">الصف الدراسي *</label>
                         <select id="studentGrade" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none" required>
