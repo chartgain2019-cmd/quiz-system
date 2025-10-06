@@ -4,6 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الاختبارات التفاعلي</title>
+    <!-- ⭐⭐ الحل النهائي لأخطاء hotkeys ⭐⭐ -->
+    <script>
+        // ========== الحل النهائي لأخطاء الامتدادات ==========
+        (function() {
+            if (typeof hotkeys === 'undefined') {
+                window.hotkeys = function() {
+                    var self = {
+                        filter: function() { return self; },
+                        key: function() { return self; },
+                        unbind: function() { return self; },
+                        isPressed: function() { return false; },
+                        getPressedKeyCodes: function() { return []; },
+                        shift: function() { return self; },
+                        ctrl: function() { return self; },
+                        alt: function() { return self; }
+                    };
+                    return self;
+                };
+                
+                // تعريف كدالة مباشرة أيضاً
+                window.hotkeys = Object.assign(window.hotkeys, {
+                    filter: function() { return window.hotkeys; },
+                    unbind: function() { return window.hotkeys; }
+                });
+            }
+        })();
+    </script>
+	
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
 	<!-- إضافة مكتبات التصدير -->
