@@ -1901,7 +1901,13 @@ const APIService = {
       body: JSON.stringify(resultData)
     });
   },
-
+// في كائن APIService، أضف:
+async changePassword(passwordData) {
+  return this.request('/change-password', {
+    method: 'POST',
+    body: JSON.stringify(passwordData)
+  });
+}, 
   async getResults() {
     return this.request('/results');
   }
@@ -5314,49 +5320,55 @@ function updateProfile(event) {
     }
 }
 
-function changePassword(event) {
-    try {
-        event.preventDefault();
-        
-        if (!currentUser) return false;
-        
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-        
-        // التحقق من كلمة المرور الحالية
-        if (currentPassword !== currentUser.password) {
-            alert('كلمة المرور الحالية غير صحيحة');
-            return false;
-        }
-        
-        // التحقق من صحة كلمة المرور الجديدة
-        const passwordError = DataValidator.validatePassword(newPassword);
-        if (passwordError) {
-            alert(passwordError);
-            return false;
-        }
-        
-        if (newPassword !== confirmNewPassword) {
-            alert('كلمة المرور الجديدة غير متطابقة');
-            return false;
-        }
-        
-        // تحديث كلمة المرور
-        currentUser.password = newPassword;
-        
-        // حفظ التحديثات
-        StorageManager.setItem('teacherAccounts', demoData.users);
-        
-        // إعادة تعيين النموذج
-        event.target.reset();
-        
-        alert('تم تغيير كلمة المرور بنجاح');
-        return true;
-    } catch (error) {
-        ErrorHandler.logError(error, 'changePassword');
-        return false;
+async function changePassword(event) {
+  try {
+    event.preventDefault();
+    
+    if (!currentUser) {
+      alert('يجب تسجيل الدخول أولاً');
+      return false;
     }
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+    
+    // التحقق من البيانات
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      alert('يرجى ملء جميع الحقول');
+      return false;
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+      alert('كلمة المرور الجديدة غير متطابقة');
+      return false;
+    }
+    
+    if (newPassword.length < 6) {
+      alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return false;
+    }
+    
+    // استخدام API لتغيير كلمة المرور
+    const result = await APIService.changePassword({
+      currentPassword: currentPassword,
+      newPassword: newPassword
+    });
+    
+    if (result.success) {
+      alert('تم تغيير كلمة المرور بنجاح');
+      event.target.reset();
+      return true;
+    } else {
+      alert(result.error || 'فشل في تغيير كلمة المرور');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('خطأ في تغيير كلمة المرور:', error);
+    alert('حدث خطأ: ' + error.message);
+    return false;
+  }
 }
 
 // ========== دوال المسؤول وأدوات التصحيح ==========
