@@ -1877,10 +1877,10 @@ const APIService = {
     return this.request('/schools');
   },
 
- // 🏫 الحصول على جميع المدارس
-  async getAllSchools() {
-    return this.request('/all-schools');
-  },
+// 🏫 الحصول على جميع المدارس (للبحث)
+async getAllSchools() {
+  return this.request('/all-schools');
+},
 	
   // 📝 الاختبارات
   async getTests(schoolId) {
@@ -2135,15 +2135,19 @@ async function searchSchools() {
             return;
         }
         
+        console.log('🔍 جاري البحث عن المدارس...', searchTerm);
+        
         // استخدام API للبحث في المدارس
-        console.log('🔍 جاري البحث عن المدارس...');
         const allSchools = await APIService.getAllSchools();
+        console.log('📊 المدارس المستلمة من الخادم:', allSchools);
         
         // البحث في اسم المدرسة والمعلم
         const matchingSchools = allSchools.filter(school => 
             school.name.toLowerCase().includes(searchTerm) || 
             school.teacher.toLowerCase().includes(searchTerm)
         );
+        
+        console.log('🎯 نتائج البحث:', matchingSchools);
         
         if (matchingSchools.length === 0) {
             resultsContainer.innerHTML = '<div class="p-4 text-center text-gray-500">لا توجد نتائج مطابقة</div>';
@@ -2163,8 +2167,9 @@ async function searchSchools() {
         
         resultsContainer.innerHTML = resultsHTML;
         resultsContainer.classList.remove('hidden');
+        
     } catch (error) {
-        console.error('❌ خطأ في البحث:', error);
+        console.error('❌ خطأ في البحث من الخادم:', error);
         // استخدام البيانات المحلية كنسخة احتياطية
         fallbackSearchSchools(searchTerm);
     }
@@ -2172,6 +2177,7 @@ async function searchSchools() {
 
 // نسخة احتياطية باستخدام البيانات المحلية
 function fallbackSearchSchools(searchTerm) {
+    console.log('🔄 استخدام البيانات المحلية للبحث...');
     const resultsContainer = document.getElementById('schoolSearchResults');
     const matchingSchools = Object.values(demoData.schools).filter(school => 
         school.name.toLowerCase().includes(searchTerm) || 
