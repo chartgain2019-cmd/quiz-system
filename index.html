@@ -1306,44 +1306,59 @@ const ResourceManager = {
 
 const StorageManager = {
     setItem: function(key, value) {
-        try {
-            if (!this.isStorageAvailable()) {
-                console.warn('LocalStorage غير متوفر');
-                return false;
-            }
-            
-            // تنظيف البيانات قبل الحفظ
-            const cleanValue = this.cleanDataBeforeSave(value);
-            const data = JSON.stringify({
-                value: cleanValue,
-                timestamp: Date.now(),
-                version: '1.0'
-            });
-            
-            // التحقق من حجم البيانات
-            if (data.length > 4500000) { // 4.5MB بدلاً من 5MB
-                console.warn(`بيانات كبيرة جداً لـ ${key}: ${data.length} بايت`);
-                return this.handleLargeData(key, cleanValue);
-            }
-            
-            localStorage.setItem(key, data);
-            console.log(`تم حفظ ${key} بنجاح`);
-            return true;
-        } catch (error) {
-            ErrorHandler.logError(error, `StorageManager.setItem(${key})`);
+    try {
+        if (!this.isStorageAvailable()) {
+            console.warn('LocalStorage غير متوفر');
             return false;
         }
-    },
+        
+        // تنظيف البيانات قبل الحفظ
+        const cleanValue = this.cleanDataBeforeSave(value);
+        
+        // معالجة خاصة لـ authToken - تخزينه كـ string مباشر
+        if (key === 'authToken') {
+            localStorage.setItem(key, cleanValue);
+            console.log(`تم حفظ ${key} كـ string مباشر`);
+            return true;
+        }
+        
+        // لباقي البيانات، استخدم التغليف JSON
+        const data = JSON.stringify({
+            value: cleanValue,
+            timestamp: Date.now(),
+            version: '1.0'
+        });
+        
+        // التحقق من حجم البيانات
+        if (data.length > 4500000) {
+            console.warn(`بيانات كبيرة جداً لـ ${key}: ${data.length} بايت`);
+            return this.handleLargeData(key, cleanValue);
+        }
+        
+        localStorage.setItem(key, data);
+        console.log(`تم حفظ ${key} بنجاح`);
+        return true;
+    } catch (error) {
+        ErrorHandler.logError(error, `StorageManager.setItem(${key})`);
+        return false;
+    }
+},
     
-    getItem: function(key) {
+getItem: function(key) {
+    try {
+        if (!this.isStorageAvailable()) {
+            return this.getDefaultValue(key);
+        }
+        
+        const item = localStorage.getItem(key);
+        if (!item) return this.getDefaultValue(key);
+        
+        // معالجة خاصة لـ authToken - لا نحاول تحليله كـ JSON
+        if (key === 'authToken') {
+            return item; // إرجاع القيمة مباشرة
+        }
+        
         try {
-            if (!this.isStorageAvailable()) {
-                return this.getDefaultValue(key);
-            }
-            
-            const item = localStorage.getItem(key);
-            if (!item) return this.getDefaultValue(key);
-            
             const parsed = JSON.parse(item);
             
             // التحقق من صحة البيانات
@@ -1353,11 +1368,16 @@ const StorageManager = {
             }
             
             return parsed.value !== undefined ? parsed.value : this.getDefaultValue(key);
-        } catch (error) {
-            ErrorHandler.logError(error, `StorageManager.getItem(${key})`);
-            return this.getDefaultValue(key);
+        } catch (jsonError) {
+            // إذا فشل التحليل JSON، قد تكون القيمة مخزنة كـ string مباشر
+            console.warn(`فشل تحليل JSON لـ ${key}، إرجاع القيمة مباشرة:`, item);
+            return item;
         }
-    },
+    } catch (error) {
+        ErrorHandler.logError(error, `StorageManager.getItem(${key})`);
+        return this.getDefaultValue(key);
+    }
+},
     
     cleanDataBeforeSave: function(data) {
         if (Array.isArray(data)) {
@@ -1470,27 +1490,39 @@ const StorageManager = {
         }
     },
     
-    getStorageInfo: function() {
-        let totalSize = 0;
-        const items = [];
-        
+   getStorageInfo: function() {
+    let totalSize = 0;
+    const items = [];
+    
+    try {
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            const value = localStorage.getItem(key);
-            totalSize += key.length + (value ? value.length : 0);
-            items.push({
-                key: key,
-                size: (key.length + (value ? value.length : 0)) / 1024, // KB
-                timestamp: this.getItem(key)?.timestamp || 'unknown'
-            });
+            try {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    totalSize += key.length + value.length;
+                    items.push({
+                        key: key,
+                        size: (key.length + value.length) / 1024, // KB
+                        timestamp: 'N/A' // لا نحاول تحليل التوقيت لتجنب الأخطاء
+                    });
+                }
+            } catch (e) {
+                // تخطي العناصر التي تسبب أخطاء
+                console.warn(`تخطي العنصر التالف: ${key}`);
+                continue;
+            }
         }
-        
-        return {
-            totalSize: totalSize / 1024 / 1024, // MB
-            itemCount: localStorage.length,
-            items: items.sort((a, b) => b.size - a.size)
-        };
-    },
+    } catch (error) {
+        console.error('خطأ في حساب معلومات التخزين:', error);
+    }
+    
+    return {
+        totalSize: totalSize / 1024 / 1024, // MB
+        itemCount: items.length,
+        items: items
+    };
+},
 
     // نظام النسخ الاحتياطي الجديد
     createBackup: function() {
@@ -6674,6 +6706,43 @@ function updateDemoDataWithDefaultSchool() {
 
 // تشغيل عند تحميل الصفحة
 setTimeout(updateDemoDataWithDefaultSchool, 1000);
+
+// تنظيف البيانات التالفة في localStorage
+function cleanupCorruptedData() {
+    try {
+        console.log('🧹 جاري تنظيف البيانات التالفة...');
+        
+        // قائمة بالمفاتيح التي قد تحتوي على بيانات تالفة
+        const potentialCorruptedKeys = ['authToken', 'currentUser', 'currentSession'];
+        
+        potentialCorruptedKeys.forEach(key => {
+            try {
+                const item = localStorage.getItem(key);
+                if (item) {
+                    // إذا كان المفتاح يحتوي على JSON تالف، حاول إصلاحه
+                    if (item.startsWith('{') || item.startsWith('[')) {
+                        JSON.parse(item); // مجرد محاولة تحقق
+                        console.log(`✅ ${key}: بيانات سليمة`);
+                    } else {
+                        console.log(`✅ ${key}: بيانات string عادية`);
+                    }
+                }
+            } catch (error) {
+                console.warn(`❌ ${key}: بيانات تالفة - جاري الإصلاح...`);
+                // حذف البيانات التالفة
+                localStorage.removeItem(key);
+                console.log(`✅ ${key}: تم تنظيف البيانات التالفة`);
+            }
+        });
+        
+        console.log('✅ اكتمل تنظيف البيانات التالفة');
+    } catch (error) {
+        console.error('❌ فشل في تنظيف البيانات التالفة:', error);
+    }
+}
+
+// تشغيل التنظيف بعد تحميل الصفحة
+setTimeout(cleanupCorruptedData, 2000);
 	
 </script>
    <!-- تذييل متميز -->
