@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الاختبارات التفاعلي</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
       <!-- ⭐⭐ إضافة مكتبة hotkeys هنا لحل المشكلة ⭐⭐ -->
     <script src="https://cdn.jsdelivr.net/npm/hotkeys-js@3.8.7/dist/hotkeys.min.js"></script>
 	<!-- إضافة مكتبات التصدير -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// تأكد من أن jsPDF متاح globally
+window.jsPDF = window.jspdf.jsPDF;
+</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     
     <!-- إضافة مكتبة html2canvas لتحويل HTML إلى صورة -->
@@ -6394,7 +6398,13 @@ function checkSystemStatus() {
 
 // تشغيل فحص النظام
 setTimeout(checkSystemStatus, 1000);
-	
+		
+// حل بديل لمشكلة hotkeys
+if (typeof hotkeys === 'undefined') {
+    console.warn('⚠️ hotkeys غير معرّفة - تحميل بديل');
+    // يمكنك إضافة بديل هنا إذا كنت تستخدم hotkeys في نظامك
+}	
+		
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
