@@ -8321,35 +8321,36 @@ function fixRetakeButtonStyle() {
 window.fixStyle = fixRetakeButtonStyle;	
 // ========== دوال إصلاح وإظهار جميع الاختبارات ==========
 
+// ========== الإصلاح النهائي مع التأكد من الحفظ ==========
+
 window.fixTestQuestions = function() {
     try {
-        console.log('🔧 بدء إصلاح وإظهار جميع الاختبارات...');
+        console.log('🎯 بدء الإصلاح مع التأكد من الحفظ...');
         
         const school = demoData.schools['school_default'];
-        if (school && school.tests && school.tests.length > 0) {
-            let fixedCount = 0;
-            let details = '';
-            
-            // تأكد من وجود اختبار الرياضيات
-            let mathTest = school.tests.find(test => test.subject === 'الرياضيات');
-            if (!mathTest) {
-                // إنشاء اختبار الرياضيات إذا لم يكن موجوداً
-                mathTest = {
-                    name: 'اختبار الرياضيات الفصل الأول',
-                    subject: 'الرياضيات',
-                    grade: 'الرابع ابتدائي',
-                    timerPerQuestion: 30,
-                    difficulty: 'متوسط',
-                    description: 'اختبار الفصل الأول في مادة الرياضيات',
-                    questions: []
-                };
-                school.tests.push(mathTest);
-                details += '- إنشاء اختبار الرياضيات جديد\n';
-            }
-            
-            // تحديث اختبار الرياضيات
-            const mathOldCount = mathTest.questions.length;
-            mathTest.questions = [
+        if (!school) {
+            alert('❌ المدرسة غير موجودة');
+            return;
+        }
+        
+        // التأكد من وجود مصفوفة tests
+        if (!school.tests) {
+            school.tests = [];
+            console.log('✅ تم إنشاء مصفوفة الاختبارات الجديدة');
+        }
+        
+        // مسح الاختبارات الحالية
+        school.tests.length = 0;
+        
+        // اختبار الرياضيات
+        const mathTest = {
+            name: 'اختبار الرياضيات الفصل الأول',
+            subject: 'الرياضيات',
+            grade: 'الرابع ابتدائي',
+            timerPerQuestion: 30,
+            difficulty: 'متوسط',
+            description: 'اختبار الفصل الأول في مادة الرياضيات',
+            questions: [
                 {
                     question: 'ما هو ناتج ١٥ + ٢٧؟',
                     options: ['٤٢', '٣٢', '٥٢', '٣٧'],
@@ -8375,30 +8376,19 @@ window.fixTestQuestions = function() {
                     options: ['١٠ سم', '١٥ سم', '٢٠ سم', '٢٥ سم'],
                     correct: 2
                 }
-            ];
-            details += `- الرياضيات: ${mathOldCount} → ٥ أسئلة\n`;
-            fixedCount++;
-            
-            // تأكد من وجود اختبار العلوم
-            let scienceTest = school.tests.find(test => test.subject === 'العلوم');
-            if (!scienceTest) {
-                // إنشاء اختبار العلوم إذا لم يكن موجوداً
-                scienceTest = {
-                    name: 'اختبار العلوم الفصل الأول',
-                    subject: 'العلوم', 
-                    grade: 'الرابع ابتدائي',
-                    timerPerQuestion: 30,
-                    difficulty: 'متوسط',
-                    description: 'اختبار الفصل الأول في مادة العلوم',
-                    questions: []
-                };
-                school.tests.push(scienceTest);
-                details += '- إنشاء اختبار العلوم جديد\n';
-            }
-            
-            // تحديث اختبار العلوم
-            const scienceOldCount = scienceTest.questions.length;
-            scienceTest.questions = [
+            ]
+        };
+        school.tests.push(mathTest);
+        
+        // اختبار العلوم
+        const scienceTest = {
+            name: 'اختبار العلوم الفصل الأول',
+            subject: 'العلوم',
+            grade: 'الرابع ابتدائي',
+            timerPerQuestion: 30,
+            difficulty: 'متوسط',
+            description: 'اختبار الفصل الأول في مادة العلوم',
+            questions: [
                 {
                     question: 'أي من هذه الكواكب أقرب إلى الشمس؟',
                     options: ['الزهرة', 'المريخ', 'عطارد', 'الأرض'],
@@ -8424,84 +8414,121 @@ window.fixTestQuestions = function() {
                     options: ['الخشب', 'البلاستيك', 'الحديد', 'المطاط'],
                     correct: 2
                 }
-            ];
-            details += `- العلوم: ${scienceOldCount} → ٥ أسئلة\n`;
-            fixedCount++;
-            
-            // حفظ البيانات
-            StorageManager.setItem('demoSchoolsData', demoData.schools);
-            
-            // عرض النتائج
-            const resultMessage = `✅ تم إصلاح ${fixedCount} اختبار\n\n${details}\n\nتم حفظ التغييرات بنجاح!\n\nالآن سيظهر اختبارا الرياضيات والعلوم للطلاب.`;
-            alert(resultMessage);
-            
-            console.log('✅ تم إصلاح جميع الاختبارات:', school.tests);
-            
-            // إعادة تحميل الصفحة تلقائياً بعد 3 ثوان
-            setTimeout(() => {
-                if (confirm('تم الإصلاح بنجاح! هل تريد إعادة تحميل الصفحة لتطبيق التغييرات؟')) {
-                    location.reload();
-                }
-            }, 3000);
-            
-        } else {
-            alert('❌ لا توجد مدارس أو اختبارات للإصلاح');
-        }
-    } catch (error) {
-        console.error('❌ خطأ في إصلاح الأسئلة:', error);
-        alert('❌ حدث خطأ أثناء إصلاح الأسئلة: ' + error.message);
-    }
-};
-
-window.checkTestData = function() {
-    try {
-        console.log('🔍 فحص بيانات الاختبارات...');
+            ]
+        };
+        school.tests.push(scienceTest);
         
-        const school = demoData.schools['school_default'];
-        if (school && school.tests) {
-            let report = '📊 تقرير الاختبارات المتاحة للطلاب:\n\n';
-            let totalQuestions = 0;
-            let visibleTests = 0;
+        console.log('📝 البيانات قبل الحفظ:', {
+            مدرسة: school.name,
+            عدد_الاختبارات: school.tests.length,
+            الاختبارات: school.tests.map(t => ({ مادة: t.subject, أسئلة: t.questions.length }))
+        });
+        
+        // الحفظ مع التأكد
+        let saveAttempts = 0;
+        let saveSuccess = false;
+        
+        while (saveAttempts < 3 && !saveSuccess) {
+            saveAttempts++;
+            console.log(`🔄 محاولة حفظ رقم ${saveAttempts}...`);
             
-            school.tests.forEach((test, index) => {
-                const questionCount = test.questions?.length || 0;
-                totalQuestions += questionCount;
-                const status = questionCount >= 3 ? '✅' : '❌';
-                const isVisible = questionCount > 0 ? '👁️' : '🚫';
+            saveSuccess = StorageManager.setItem('demoSchoolsData', demoData.schools);
+            
+            if (saveSuccess) {
+                console.log('✅ تم الحفظ بنجاح في المحاولة', saveAttempts);
                 
-                if (questionCount > 0) visibleTests++;
+                // التحقق من الحفظ
+                const savedData = StorageManager.getItem('demoSchoolsData');
+                const savedSchool = savedData['school_default'];
                 
-                report += `${status} ${isVisible} الاختبار ${index + 1}:\n`;
-                report += `   📝 الاسم: ${test.name || 'غير محدد'}\n`;
-                report += `   📖 المادة: ${test.subject || 'غير محدد'}\n`;
-                report += `   ❓ عدد الأسئلة: ${questionCount}\n`;
-                report += `   🎒 الصف: ${test.grade || 'غير محدد'}\n`;
-                report += `   ⏱️ الوقت: ${test.timerPerQuestion || 30} ثانية\n\n`;
-            });
-            
-            report += `📈 الإجمالي:\n`;
-            report += `   • ${visibleTests} اختبار ظاهر للطلاب\n`;
-            report += `   • ${totalQuestions} سؤال متاح\n`;
-            report += `   • ${school.tests.length} اختبار إجمالي\n\n`;
-            
-            if (visibleTests < school.tests.length) {
-                report += '⚠️ تحذير: بعض الاختبارات غير ظاهرة للطلاب لأنها لا تحتوي على أسئلة!\n';
-                report += 'استخدم زر "إصلاح الأسئلة" لجعل جميع الاختبارات ظاهرة.';
+                if (savedSchool && savedSchool.tests) {
+                    console.log('✅ التحقق من الحفظ:', {
+                        اختبارات_محفوظة: savedSchool.tests.length,
+                        تفاصيل: savedSchool.tests.map(t => t.subject)
+                    });
+                    
+                    if (savedSchool.tests.length === 2) {
+                        alert(`🎉 تم الإصلاح والحفظ بنجاح!\n\n✅ اختبار الرياضيات: ٥ أسئلة\n✅ اختبار العلوم: ٥ أسئلة\n\nسيظهر كلا الاختبارين للطلاب الآن!`);
+                        
+                        // إعادة تحميل فورية
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                        return;
+                    }
+                }
             }
             
-            alert(report);
-            console.log('تفاصيل الاختبارات:', school.tests);
-        } else {
-            alert('❌ لا توجد اختبارات للفحص');
+            if (!saveSuccess) {
+                console.log('❌ فشل الحفظ في المحاولة', saveAttempts);
+                if (saveAttempts < 3) {
+                    alert(`⚠️ محاولة حفظ ${saveAttempts} فشلت... جاري المحاولة مرة أخرى`);
+                }
+            }
         }
+        
+        if (!saveSuccess) {
+            alert('❌ فشل حفظ البيانات بعد 3 محاولات. قد تكون مساحة التخزين ممتلئة.');
+        }
+        
     } catch (error) {
-        console.error('❌ خطأ في فحص البيانات:', error);
-        alert('❌ حدث خطأ أثناء فحص البيانات: ' + error.message);
+        console.error('❌ خطأ في الإصلاح:', error);
+        alert('❌ حدث خطأ: ' + error.message);
     }
 };
 
-console.log('✅ تم تحميل دوال إصلاح وإظهار الاختبارات');
-// ========== نهاية دوال الإصلاح ==========
+// دالة فحص محسنة
+window.checkTestData = function() {
+    try {
+        console.log('🔍 فحص شامل مع التحقق من الحفظ...');
+        
+        // البيانات من الذاكرة
+        const memorySchool = demoData.schools['school_default'];
+        // البيانات من التخزين
+        const storageData = StorageManager.getItem('demoSchoolsData');
+        const storageSchool = storageData ? storageData['school_default'] : null;
+        
+        let report = '📊 التقرير الشامل:\n\n';
+        
+        // فحص الذاكرة
+        report += '🧠 البيانات في الذاكرة:\n';
+        if (memorySchool && memorySchool.tests) {
+            memorySchool.tests.forEach((test, index) => {
+                report += `   ${test.subject}: ${test.questions.length} سؤال\n`;
+            });
+            report += `   الإجمالي: ${memorySchool.tests.length} اختبار\n\n`;
+        } else {
+            report += '   ❌ لا توجد بيانات في الذاكرة\n\n';
+        }
+        
+        // فحص التخزين
+        report += '💾 البيانات في التخزين:\n';
+        if (storageSchool && storageSchool.tests) {
+            storageSchool.tests.forEach((test, index) => {
+                report += `   ${test.subject}: ${test.questions.length} سؤال\n`;
+            });
+            report += `   الإجمالي: ${storageSchool.tests.length} اختبار\n\n`;
+        } else {
+            report += '   ❌ لا توجد بيانات في التخزين\n\n';
+        }
+        
+        // المقارنة
+        const memoryCount = memorySchool?.tests?.length || 0;
+        const storageCount = storageSchool?.tests?.length || 0;
+        
+        if (memoryCount === storageCount) {
+            report += '✅ الذاكرة والتخزين متطابقان\n';
+        } else {
+            report += `❌ هناك اختلاف: الذاكرة (${memoryCount}) ≠ التخزين (${storageCount})\n`;
+        }
+        
+        alert(report);
+        
+    } catch (error) {
+        console.error('❌ خطأ في الفحص:', error);
+        alert('❌ حدث خطأ أثناء الفحص');
+    }
+};
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
