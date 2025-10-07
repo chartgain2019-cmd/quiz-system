@@ -3277,30 +3277,55 @@ function refreshTestsList(schoolId) {
     }
 }
 
-// دالة مزامنة بيانات المدرسة مع الخادم
+// دالة مزامنة بيانات المدرسة مع الخادم - الإصدار النهائي
 async function syncSchoolData(schoolId) {
     try {
         const school = demoData.schools[schoolId];
-        if (!school) return;
+        if (!school) {
+            console.log('❌ المدرسة غير موجودة للمزامنة');
+            return;
+        }
+        
+        // التحقق من وجود token
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            console.log('ℹ️ لا يوجد token، استخدام البيانات المحلية فقط');
+            return;
+        }
         
         // مزامنة مع الخادم إذا كان متصلاً
         const response = await fetch(`https://quiz-system-api.onrender.com/api/schools/${schoolId}/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(school)
         });
         
         if (response.ok) {
             console.log('✅ تمت مزامنة بيانات المدرسة مع الخادم');
+        } else if (response.status === 404) {
+            console.log('ℹ️ نقطة المزامنة غير متوفرة في الخادم');
+        } else {
+            console.log('⚠️ فشل في المزامنة:', response.status);
         }
     } catch (error) {
         console.log('ℹ️ لا يمكن الاتصال بالخادم للمزامنة، استخدام البيانات المحلية');
     }
 }
 
+// دالة الإصلاح التلقائي للمعلم عند تسجيل الدخول
+function autoFixTeacherOnLogin() {
+    try {
+        if (currentUser && currentUser.email === 'chartgain2019@gmail.com') {
+            console.log('🔧 إصلاح تلقائي للمعلم المسؤول');
+            initializeDefaultData();
+        }
+    } catch (error) {
+        console.error('❌ خطأ في الإصلاح التلقائي:', error);
+    }
+}
 // دالة تحديث بيانات المدرسة
 function refreshSchoolData() {
     try {
@@ -7378,27 +7403,6 @@ function refreshSchoolData() {
     }
 }
 
-// دالة مزامنة بيانات المدرسة مع الخادم
-async function syncSchoolData(schoolId) {
-    try {
-        console.log('🔄 مزامنة بيانات المدرسة مع الخادم:', schoolId);
-        // يمكن إضافة منطق المزامنة مع الخادم هنا لاحقاً
-    } catch (error) {
-        console.error('❌ خطأ في مزامنة البيانات:', error);
-    }
-}
-
-// دالة الإصلاح التلقائي للمعلم عند تسجيل الدخول
-function autoFixTeacherOnLogin() {
-    try {
-        if (currentUser && currentUser.email === 'chartgain2019@gmail.com') {
-            console.log('🔧 إصلاح تلقائي للمعلم المسؤول');
-            initializeDefaultData();
-        }
-    } catch (error) {
-        console.error('❌ خطأ في الإصلاح التلقائي:', error);
-    }
-}
 
 // ========== إصلاح الأخطاء الهيكلية ==========
 
@@ -7479,29 +7483,6 @@ function refreshTestsList(schoolId) {
     }
 }
 
-// دالة مزامنة بيانات المدرسة مع الخادم
-async function syncSchoolData(schoolId) {
-    try {
-        const school = demoData.schools[schoolId];
-        if (!school) return;
-        
-        // مزامنة مع الخادم إذا كان متصلاً
-        const response = await fetch(`https://quiz-system-api.onrender.com/api/schools/${schoolId}/sync`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            },
-            body: JSON.stringify(school)
-        });
-        
-        if (response.ok) {
-            console.log('✅ تمت مزامنة بيانات المدرسة مع الخادم');
-        }
-    } catch (error) {
-        console.log('ℹ️ لا يمكن الاتصال بالخادم للمزامنة، استخدام البيانات المحلية');
-    }
-}
 
 // دالة تحديث بيانات المدرسة
 function refreshSchoolData() {
