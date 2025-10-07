@@ -8319,6 +8319,121 @@ function fixRetakeButtonStyle() {
 
 // جعل الدالة متاحة
 window.fixStyle = fixRetakeButtonStyle;	
+// ========== دوال إصلاح الأسئلة - الإصدار النهائي ==========
+
+window.fixTestQuestions = function() {
+    try {
+        console.log('🔧 بدء إصلاح أسئلة الاختبارات...');
+        
+        const school = demoData.schools['school_default'];
+        if (school && school.tests && school.tests.length > 0) {
+            let fixedCount = 0;
+            
+            // تحديث اختبار الرياضيات
+            const mathTest = school.tests.find(test => test.subject === 'الرياضيات');
+            if (mathTest) {
+                mathTest.questions = [
+                    {
+                        question: 'ما هو ناتج ١٥ + ٢٧؟',
+                        options: ['٤٢', '٣٢', '٥٢', '٣٧'],
+                        correct: 0
+                    },
+                    {
+                        question: 'ما هو العدد الذي يمثل خمسة وعشرين؟',
+                        options: ['٥٢', '٢٥', '٢٠٥', '٢٥٠'],
+                        correct: 1
+                    },
+                    {
+                        question: 'ما هو ناتج ٨ × ٧؟',
+                        options: ['٥٤', '٥٦', '٦٤', '٤٨'],
+                        correct: 1
+                    },
+                    {
+                        question: 'ما هو الكسر الذي يمثل النصف؟',
+                        options: ['١/٤', '١/٢', '١/٣', '٢/٣'],
+                        correct: 1
+                    },
+                    {
+                        question: 'ما هو محيط المربع الذي طول ضلعه ٥ سم؟',
+                        options: ['١٠ سم', '١٥ سم', '٢٠ سم', '٢٥ سم'],
+                        correct: 2
+                    }
+                ];
+                fixedCount++;
+                console.log('✅ تم إصلاح اختبار الرياضيات');
+            }
+            
+            // تحديث اختبار العلوم
+            const scienceTest = school.tests.find(test => test.subject === 'العلوم');
+            if (scienceTest) {
+                scienceTest.questions = [
+                    {
+                        question: 'أي من هذه الكواكب أقرب إلى الشمس؟',
+                        options: ['الزهرة', 'المريخ', 'عطارد', 'الأرض'],
+                        correct: 2
+                    },
+                    {
+                        question: 'ما هي العملية التي تنتج بها النباتات غذاءها؟',
+                        options: ['التنفس', 'البناء الضوئي', 'التبخر', 'التكاثر'],
+                        correct: 1
+                    },
+                    {
+                        question: 'أي من هذه الحيوانات من الثدييات؟',
+                        options: ['التمساح', 'الحوت', 'السلحفاة', 'الأفعى'],
+                        correct: 1
+                    }
+                ];
+                fixedCount++;
+                console.log('✅ تم إصلاح اختبار العلوم');
+            }
+            
+            if (fixedCount > 0) {
+                StorageManager.setItem('demoSchoolsData', demoData.schools);
+                alert(`✅ تم إصلاح ${fixedCount} اختبار\n\n- الرياضيات: ٥ أسئلة\n- العلوم: ٣ أسئلة`);
+            } else {
+                alert('✅ جميع الاختبارات تحتوي على عدد كافٍ من الأسئلة');
+            }
+        } else {
+            alert('❌ لا توجد مدارس أو اختبارات للإصلاح');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في إصلاح الأسئلة:', error);
+        alert('❌ حدث خطأ أثناء إصلاح الأسئلة');
+    }
+};
+
+window.checkTestData = function() {
+    try {
+        console.log('🔍 فحص بيانات الاختبارات...');
+        
+        const school = demoData.schools['school_default'];
+        if (school && school.tests) {
+            let report = '📊 تقرير الاختبارات:\n\n';
+            
+            school.tests.forEach((test, index) => {
+                const questionCount = test.questions?.length || 0;
+                const status = questionCount >= 3 ? '✅' : '❌';
+                
+                report += `${status} الاختبار ${index + 1}:\n`;
+                report += `   📝 الاسم: ${test.name}\n`;
+                report += `   📖 المادة: ${test.subject}\n`;
+                report += `   ❓ عدد الأسئلة: ${questionCount}\n`;
+                report += `   🎒 الصف: ${test.grade}\n\n`;
+            });
+            
+            alert(report);
+        } else {
+            alert('❌ لا توجد اختبارات للفحص');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في فحص البيانات:', error);
+        alert('❌ حدث خطأ أثناء فحص البيانات');
+    }
+};
+
+console.log('✅ تم تحميل دوال إصلاح الأسئلة');
+// ========== نهاية دوال الإصلاح ==========
+	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
