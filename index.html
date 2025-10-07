@@ -2615,10 +2615,7 @@ async function searchSchools() {
         const searchTerm = document.getElementById('schoolSearch').value.toLowerCase();
         const resultsContainer = document.getElementById('schoolSearchResults');
         
-        if (!resultsContainer) {
-            console.error('❌ عنصر نتائج البحث غير موجود');
-            return;
-        }
+        if (!resultsContainer) return;
         
         if (searchTerm.length < 2) {
             resultsContainer.classList.add('hidden');
@@ -2627,22 +2624,31 @@ async function searchSchools() {
         
         console.log('🔍 بحث عن:', searchTerm);
         
-        // عرض نتائج افتراضية فوراً للتجربة
-        resultsContainer.innerHTML = `
-            <div class="p-4 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-all" 
-                 onclick="selectSearchedSchool('school1')">
-                <div class="font-bold text-gray-800">مدرسة الوليد بن عمارة الابتدائية</div>
-                <div class="text-sm text-gray-600">أ. عبدالله الشهري</div>
-            </div>
-            <div class="p-4 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-all" 
-                 onclick="selectSearchedSchool('school2')">
-                <div class="font-bold text-gray-800">مدرسة الإمام محمد بن سعود</div>
-                <div class="text-sm text-gray-600">أ. فهد العتيبي</div>
-            </div>
-        `;
-        resultsContainer.classList.remove('hidden');
+        // استخدام البيانات الحقيقية فقط من demoData.schools
+        const realSchools = Object.values(demoData.schools || {});
+        const matchingSchools = realSchools.filter(school => 
+            school.name && school.name.toLowerCase().includes(searchTerm)
+        );
         
-        console.log('✅ تم عرض نتائج البحث');
+        console.log('🏫 المدارس المطابقة:', matchingSchools.length);
+        
+        if (matchingSchools.length === 0) {
+            resultsContainer.innerHTML = '<div class="p-4 text-center text-gray-500">لا توجد نتائج مطابقة</div>';
+        } else {
+            let resultsHTML = '';
+            matchingSchools.forEach(school => {
+                resultsHTML += `
+                    <div class="p-4 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-all" 
+                         onclick="selectSearchedSchool('${school.id}')">
+                        <div class="font-bold text-gray-800">${school.name}</div>
+                        <div class="text-sm text-gray-600">${school.teacher || 'غير محدد'}</div>
+                    </div>
+                `;
+            });
+            resultsContainer.innerHTML = resultsHTML;
+        }
+        
+        resultsContainer.classList.remove('hidden');
         
     } catch (error) {
         console.error('❌ خطأ في searchSchools:', error);
@@ -8025,7 +8031,20 @@ setTimeout(() => {
     console.log('🔄 تم تحديث الإحصائيات بعد التنظيف');
 }, 1000);
 	
-	
+// فحص البيانات الحقيقية للمدارس
+function checkRealSchools() {
+    console.log('🔍 البيانات الحقيقية للمدارس:');
+    const schools = Object.values(demoData.schools || {});
+    
+    schools.forEach((school, index) => {
+        console.log(`🏫 ${index + 1}. ${school.name} (${school.id}) - ${school.teacher}`);
+    });
+    
+    console.log('📊 الإجمالي:', schools.length, 'مدرسة');
+}
+
+// جعلها متاحة من الـ console
+window.checkSchools = checkRealSchools;	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
