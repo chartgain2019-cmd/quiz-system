@@ -1199,49 +1199,38 @@ setTimeout(() => {
 // ========== منع التحميل المزدوج النهائي ==========
 if (window.quizSystemLoaded) {
     console.log('🛑 النظام مُحمّل مسبقاً، إيقاف التحميل...');
-    return;
-}
-window.quizSystemLoaded = true;
-let systemInitialized = false;
+} else {
+    window.quizSystemLoaded = true;
+    
+    // تعريف الدوال الأساسية فوراً
+    window.showStudentAccess = function() {
+        console.log('👨‍🎓 عرض شاشة دخول الطلاب');
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('studentAccessScreen').classList.remove('hidden');
+    };
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (systemInitialized) {
-        console.log('🛑 تم تهيئة النظام مسبقاً، إيقاف...');
-        return;
-    }
-    systemInitialized = true;
-    
-    console.log('🚀 بدء تحميل نظام الاختبارات...');
-    
-    try {
-        // تهيئة أنظمة الاستقرار
-        if (typeof SystemRecovery !== 'undefined') {
-            SystemRecovery.initialize();
-        }
+    window.showTeacherLogin = function() {
+        console.log('👨‍💼 عرض شاشة تسجيل دخول المعلمين');
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('teacherLoginScreen').classList.remove('hidden');
+    };
+
+    // تهيئة النظام عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 بدء تحميل نظام الاختبارات...');
         
-        if (typeof StorageManager !== 'undefined') {
-            StorageManager.initializeStorage();
+        try {
+            // تحميل البيانات الأساسية
+            if (typeof initializeDemoData !== 'undefined') initializeDemoData();
+            if (typeof loadTeacherAccounts !== 'undefined') loadTeacherAccounts();
+            if (typeof updateWelcomeStatistics !== 'undefined') updateWelcomeStatistics();
+            
+            console.log('✅ اكتمل تحميل النظام');
+        } catch (error) {
+            console.error('❌ خطأ في التهيئة:', error);
         }
-        
-        // تحميل البيانات
-        if (typeof loadTeacherAccounts !== 'undefined') {
-            loadTeacherAccounts();
-        }
-        
-        if (typeof loadSchoolsForExistingTeachers !== 'undefined') {
-            loadSchoolsForExistingTeachers();
-        }
-        
-        // تحديث الإحصائيات
-        if (typeof updateWelcomeStatistics !== 'undefined') {
-            updateWelcomeStatistics();
-        }
-        
-        console.log('✅ اكتمل تحميل النظام');
-    } catch (error) {
-        console.error('❌ خطأ في التهيئة:', error);
-    }
-});
+    });
+}
 	
 // إصلاح فوري - جعل الدوال متاحة
 window.selectSearchedSchool = async function(schoolId) {
