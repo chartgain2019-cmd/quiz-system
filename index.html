@@ -7913,7 +7913,84 @@ if (typeof window.chrome !== 'undefined' && window.chrome.runtime) {
 }
 
 console.log('✅ تم تحميل الإصلاحات الأساسية للنظام');
-	
+// ========== دوال مزامنة البيانات ==========
+
+// دالة لمزامنة بيانات المدارس بين الخادم والمحلي
+async function syncSchoolsData() {
+    try {
+        console.log('🔄 مزامنة بيانات المدارس...');
+        
+        // 1. جلب البيانات من الخادم
+        const serverSchools = await APIService.getAllSchools();
+        console.log('🏫 المدارس من الخادم:', serverSchools.length);
+        
+        // 2. البيانات المحلية
+        const localSchools = Object.keys(demoData.schools || {}).length;
+        console.log('🏫 المدارس محلياً:', localSchools);
+        
+        // 3. تحديث الإحصائيات بالبيانات الحقيقية
+        const realStats = {
+            totalSchools: Math.max(serverSchools.length, localSchools),
+            totalTeachers: Object.keys(demoData.users || {}).length,
+            totalTests: Object.values(demoData.schools || {}).reduce((sum, school) => 
+                sum + (school.tests ? school.tests.length : 0), 0),
+            totalResults: loadResults().length
+        };
+        
+        console.log('📊 الإحصائيات الحقيقية:', realStats);
+        
+        // 4. تحديث العرض
+        updateStatisticsDisplay(realStats);
+        
+    } catch (error) {
+        console.error('❌ خطأ في مزامنة المدارس:', error);
+    }
+}
+
+// دالة لتحديث العرض
+function updateStatisticsDisplay(stats) {
+    const elements = {
+        statsSchools: document.getElementById('statsSchools'),
+        statsTeachers: document.getElementById('statsTeachers'),
+        statsTests: document.getElementById('statsTests'),
+        statsResults: document.getElementById('statsResults')
+    };
+    
+    if (elements.statsSchools) elements.statsSchools.textContent = stats.totalSchools;
+    if (elements.statsTeachers) elements.statsTeachers.textContent = stats.totalTeachers;
+    if (elements.statsTests) elements.statsTests.textContent = stats.totalTests;
+    if (elements.statsResults) elements.statsResults.textContent = stats.totalResults;
+    
+    console.log('✅ تم تحديث الإحصائيات بالبيانات الحقيقية');
+}
+
+// دالة لعرض جميع المدارس الفعلية
+function debugSchoolsData() {
+    console.log('🔍 فحص بيانات المدارس:');
+    console.log('📊 من الخادم:', 'يجب جلبها من API');
+    console.log('📊 محلياً:', Object.keys(demoData.schools || {}));
+    console.log('📊 المعلمون:', Object.keys(demoData.users || {}));
+    
+    // عرض تفاصيل كل مدرسة
+    Object.values(demoData.schools || {}).forEach((school, index) => {
+        console.log(`🏫 المدرسة ${index + 1}:`, school.name, '- المعلم:', school.teacher);
+    });
+}
+
+// جعل الدالة متاحة globally للاستخدام من الـ console
+window.debugSchools = debugSchoolsData;
+
+// استدعاء المزامنة بعد تحميل النظام
+document.addEventListener('DOMContentLoaded', function() {
+    // الكود الحالي...
+    
+    // إضافة المزامنة بعد 3 ثواني
+    setTimeout(() => {
+        if (typeof syncSchoolsData !== 'undefined') {
+            syncSchoolsData();
+        }
+    }, 3000);
+});	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
