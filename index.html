@@ -3884,16 +3884,31 @@ function shareWhatsApp() {
 
 function retakeTest() {
     try {
+        if (!studentData || !currentTest) {
+            console.log('❌ لا توجد بيانات اختبار لإعادة البدء');
+            alert('لا توجد بيانات اختبار نشطة');
+            return;
+        }
+        
+        console.log('🔄 بدء إعادة الاختبار...');
+        
+        // إعادة تعيين البيانات
         studentData.score = 0;
         studentData.answers = [];
         currentQuestionIndex = 0;
         
+        // الانتقال للشاشة
         document.getElementById('resultsScreen').classList.add('hidden');
         document.getElementById('testScreen').classList.remove('hidden');
         
+        // بدء الاختبار من جديد
         showQuestion();
+        
+        console.log('✅ تم إعادة الاختبار بنجاح');
+        
     } catch (error) {
-        ErrorHandler.logError(error, 'retakeTest');
+        console.error('❌ خطأ في retakeTest:', error);
+        alert('فشل في إعادة الاختبار: ' + error.message);
     }
 }
 
@@ -7521,23 +7536,6 @@ function shareWhatsApp() {
     }
 }
 
-function retakeTest() {
-    try {
-        if (!studentData || !currentTest) return;
-        
-        studentData.score = 0;
-        studentData.answers = [];
-        currentQuestionIndex = 0;
-        
-        document.getElementById('resultsScreen').classList.add('hidden');
-        document.getElementById('testScreen').classList.remove('hidden');
-        
-        showQuestion();
-    } catch (error) {
-        console.error('خطأ في retakeTest:', error);
-    }
-}
-
 function goBackToSchoolSelection() {
     try {
         document.getElementById('testScreen').classList.add('hidden');
@@ -8045,6 +8043,39 @@ function checkRealSchools() {
 
 // جعلها متاحة من الـ console
 window.checkSchools = checkRealSchools;	
+
+// فحص شامل لزر إعادة الاختبار
+function debugRetakeButton() {
+    const button = document.querySelector('button[onclick*="retakeTest"]');
+    
+    console.log('🔍 فحص زر إعادة الاختبار:');
+    console.log('📍 الزر:', button);
+    console.log('👀 مرئي:', button ? window.getComputedStyle(button).display !== 'none' : 'N/A');
+    console.log('🎨 التصميم:', button ? button.className : 'N/A');
+    console.log('🔗 الدالة retakeTest:', typeof retakeTest);
+    
+    if (button) {
+        // اختبار النقر يدوياً
+        button.addEventListener('click', function() {
+            console.log('🎯 تم النقر على الزر يدوياً');
+        });
+        
+        // إضافة تأثير للتحقق من visibility
+        button.style.border = '2px solid red';
+        button.style.boxShadow = '0 0 10px red';
+        
+        setTimeout(() => {
+            if (button) {
+                button.style.border = '';
+                button.style.boxShadow = '';
+            }
+        }, 2000);
+    }
+}
+
+// جعل الدالة متاحة
+window.debugRetake = debugRetakeButton;
+	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
