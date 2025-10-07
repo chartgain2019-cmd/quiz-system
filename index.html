@@ -8026,6 +8026,50 @@ function fixSchoolIds() {
 }
 
 window.fixSchools = fixSchoolIds;
+// حذف جميع المدارس المكررة والاحتفاظ بـ school_default فقط
+function cleanupSchools() {
+    // الاحتفاظ فقط بـ school_default
+    const defaultSchool = demoData.schools['school_default'];
+    
+    if (defaultSchool) {
+        demoData.schools = {
+            'school_default': defaultSchool
+        };
+    } else {
+        // إذا لم توجد، إنشاء مدرسة افتراضية
+        demoData.schools = {
+            'school_default': {
+                id: 'school_default',
+                name: 'مدرسة الوليد بن عمارة الابتدائية',
+                teacher: 'أ. عبدالله الشهري',
+                tests: [
+                    {
+                        name: 'اختبار الرياضيات الفصل الأول',
+                        subject: 'الرياضيات',
+                        grade: 'الرابع ابتدائي',
+                        questions: [
+                            {
+                                question: 'ما هو ناتج ٥ + ٣؟',
+                                options: ['٧', '٨', '٩', '١٠'],
+                                correct: 1
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+    }
+    
+    StorageManager.setItem('demoSchoolsData', demoData.schools);
+    console.log('✅ تم تنظيف المدارس - المتبقي: school_default فقط');
+}
+
+cleanupSchools();
+// تحديث الإحصائيات بعد التنظيف
+setTimeout(() => {
+    updateWelcomeStatistics();
+    console.log('🔄 تم تحديث الإحصائيات بعد التنظيف');
+}, 1000);
 	
 	
 </script>
