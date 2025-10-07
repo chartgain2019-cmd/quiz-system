@@ -308,14 +308,23 @@ setTimeout(() => {
             <form id="teacherLoginForm" onsubmit="return teacherLogin(event)">
                 <div class="mb-6">
                     <label class="block text-gray-700 font-semibold mb-2">البريد الإلكتروني</label>
-                    <input type="email" id="teacherEmail" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none" placeholder="أدخل البريد الإلكتروني"  required>
+                    <input type="email" 
+                           id="teacherEmail" 
+                           autocomplete="email"
+                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none" 
+                           placeholder="أدخل البريد الإلكتروني" 
+                           required>
                 </div>
                 
                 <div class="mb-6">
                     <label class="block text-gray-700 font-semibold mb-2">كلمة المرور</label>
-                    <input type="password" id="teacherPassword" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none" placeholder="أدخل كلمة المرور"  required>
+                    <input type="password" 
+                           id="teacherPassword" 
+                           autocomplete="current-password"
+                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none" 
+                           placeholder="أدخل كلمة المرور" 
+                           required>
                 </div>
-                
                 
                 <div class="flex gap-4">
                     <button type="submit" class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all">
@@ -1301,7 +1310,93 @@ function showStudentAccess() {
 }
 
 function showTeacherLogin() {
-    document.getElementById('teacherLoginScreen').classList.remove('hidden');
+    try {
+        console.log('👨‍💼 عرض شاشة تسجيل دخول المعلمين');
+        
+        // إخفاء الشاشة الرئيسية أولاً
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        
+        // إظهار شاشة تسجيل الدخول
+        document.getElementById('teacherLoginScreen').classList.remove('hidden');
+        
+        // إعادة تعيين النموذج وأخطاء التسجيل
+        const loginForm = document.getElementById('teacherLoginForm');
+        const loginError = document.getElementById('loginError');
+        
+        if (loginForm) loginForm.reset();
+        if (loginError) {
+            loginError.textContent = '';
+            loginError.classList.add('hidden');
+        }
+        
+        // التركيز على حقل البريد الإلكتروني
+        setTimeout(() => {
+            const emailInput = document.getElementById('teacherEmail');
+            if (emailInput) emailInput.focus();
+        }, 100);
+        
+    } catch (error) {
+        console.error('❌ خطأ في showTeacherLogin:', error);
+        ErrorHandler.logError(error, 'showTeacherLogin');
+    }
+}
+
+// إغلاق شاشة تسجيل دخول المعلمين
+function closeTeacherLogin() {
+    try {
+        document.getElementById('teacherLoginScreen').classList.add('hidden');
+        const loginError = document.getElementById('loginError');
+        if (loginError) loginError.classList.add('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'closeTeacherLogin');
+    }
+}
+
+// تسجيل دخول المعلم - النسخة المعدلة للخادم
+async function teacherLogin(event) {
+    try {
+        event.preventDefault();
+        
+        const email = document.getElementById('teacherEmail').value;
+        const password = document.getElementById('teacherPassword').value;
+        const errorDiv = document.getElementById('loginError');
+        
+        if (!errorDiv) {
+            ErrorHandler.logError(new Error('Login error element not found'), 'teacherLogin');
+            return false;
+        }
+        
+        // استخدام API لتسجيل الدخول
+        const result = await APIService.login({ email, password });
+        
+        if (result.success) {
+            currentUser = result.user;
+            closeTeacherLogin();
+            showTeacherDashboard();
+            return true;
+        } else {
+            errorDiv.textContent = result.error || 'بيانات الدخول غير صحيحة';
+            errorDiv.classList.remove('hidden');
+            return false;
+        }
+    } catch (error) {
+        const errorDiv = document.getElementById('loginError');
+        if (errorDiv) {
+            errorDiv.textContent = error.message;
+            errorDiv.classList.remove('hidden');
+        }
+        return false;
+    }
+}
+
+// عرض شاشة إنشاء حساب جديد
+function showTeacherSignup() {
+    try {
+        document.getElementById('teacherLoginScreen').classList.add('hidden');
+        document.getElementById('teacherSignupScreen').classList.remove('hidden');
+    } catch (error) {
+        ErrorHandler.logError(error, 'showTeacherSignup');
+    }
 }
 
 function showStudentAccess() {
@@ -1309,9 +1404,7 @@ function showStudentAccess() {
     document.getElementById('studentAccessScreen').classList.remove('hidden');
 }
 
-function showTeacherLogin() {
-    document.getElementById('teacherLoginScreen').classList.remove('hidden');
-}
+
 
 // أضف هذه الدوال الإضافية
 function closeTeacherLogin() {
@@ -2504,12 +2597,7 @@ function showStudentAccess() {
     }
 }
 
-function showTeacherLogin() {
-    try {
-        document.getElementById('teacherLoginScreen').classList.remove('hidden');
-    } catch (error) {
-        ErrorHandler.logError(error, 'showTeacherLogin');
-    }
+
 }
 
 function closeTeacherLogin() {
@@ -2881,13 +2969,7 @@ function showStudentAccess() {
     }
 }
 
-function showTeacherLogin() {
-    try {
-        document.getElementById('teacherLoginScreen').classList.remove('hidden');
-    } catch (error) {
-        ErrorHandler.logError(error, 'showTeacherLogin');
-    }
-}
+
 
 function closeTeacherLogin() {
     try {
@@ -7425,13 +7507,7 @@ function showStudentAccess() {
     }
 }
 
-function showTeacherLogin() {
-    try {
-        document.getElementById('teacherLoginScreen').classList.remove('hidden');
-    } catch (error) {
-        ErrorHandler.logError(error, 'showTeacherLogin');
-    }
-}
+
 
 // ========== إصلاح بنية try-catch ==========
 
@@ -7770,15 +7846,7 @@ function showStudentAccess() {
     }
 }
 
-function showTeacherLogin() {
-    try {
-        console.log('👨‍💼 عرض شاشة تسجيل دخول المعلمين');
-        document.getElementById('teacherLoginScreen').classList.remove('hidden');
-    } catch (error) {
-        console.error('❌ خطأ في showTeacherLogin:', error);
-        ErrorHandler.logError(error, 'showTeacherLogin');
-    }
-}
+
 
 // ========== دوال إضافية للتوافق ==========
 
