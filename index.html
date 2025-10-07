@@ -1037,37 +1037,35 @@ setTimeout(() => {
                             </button>
                         </form>
                     </div>
-					// أضف هذا الكود في قسم أدوات التصحيح الموجود حالياً
-// ابحث عن هذا الجزء في الكود:
-<div id="debugToolsSection" class="hidden">
-   <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-       <h4 class="text-lg font-bold text-yellow-800 mb-2">🛠️ أدوات التصحيح (خاصة بالمسؤول)</h4>
-       <div class="flex gap-2">
-            <button onclick="initializeDefaultData()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-               إصلاح البيانات
-            </button>
-            <button onclick="debugData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-               فحص البيانات
-            </button>
-            <button onclick="debugSystem()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-                فحص النظام
-            </button>
-            <button onclick="showAllSchools()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-                عرض المدارس
-            </button>
-            <!-- أضف هذين الزرين الجديدين هنا -->
-            <button onclick="fixTestQuestions()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-                إصلاح الأسئلة
-            </button>
-            <button onclick="checkTestData()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-                فحص الاختبارات
-            </button>
-        </div>
-        <p class="text-xs text-yellow-700 mt-2">
-            هذه الأدوات خاصة بالمسؤول وتظهر فقط لحساب chartgain2019@gmail.com
-        </p>
-    </div>
-</div>
+                    <div id="debugToolsSection" class="hidden">
+                         <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                             <h4 class="text-lg font-bold text-yellow-800 mb-2">🛠️ أدوات التصحيح (خاصة بالمسؤول)</h4>
+                             <div class="flex gap-2">
+                                  <button onclick="initializeDefaultData()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                       إصلاح البيانات
+                                </button>
+                                 <button onclick="debugData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                            فحص البيانات
+                                 </button>
+                                 <button onclick="debugSystem()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                        فحص النظام
+                                 </button>
+                                <button onclick="showAllSchools()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                      عرض المدارس
+                                </button>
+                                <!-- أضف هذين الزرين الجديدين هنا -->
+                               <button onclick="fixTestQuestions()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                    إصلاح الأسئلة
+                                </button>
+                                <button onclick="checkTestData()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                      فحص الاختبارات
+                                </button>
+                             </div>
+                          <p class="text-xs text-yellow-700 mt-2">
+                                 هذه الأدوات خاصة بالمسؤول وتظهر فقط لحساب chartgain2019@gmail.com
+                     </p>
+               </div>
+          </div>
                     <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                         <h4 class="text-xl font-bold text-gray-800 mb-4">🔒 تغيير كلمة المرور</h4>
                         <form onsubmit="return changePassword(event)">
