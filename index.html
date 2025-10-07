@@ -53,7 +53,20 @@ window.jsPDF = window.jspdf.jsPDF;
     
     <!-- إضافة مكتبة html2canvas لتحويل HTML إلى صورة -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
+    <script>
+// إصلاح تحذيرات autocomplete - أضف هذا في الـ head
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
+    inputs.forEach(input => {
+        if (!input.hasAttribute('autocomplete')) {
+            if (input.type === 'email') input.autocomplete = 'email';
+            else if (input.type === 'password') input.autocomplete = 'current-password';
+            else if (input.name?.includes('name')) input.autocomplete = 'name';
+            else input.autocomplete = 'on';
+        }
+    });
+});
+</script>
     <style>
 
 		// إضافة أنماط CSS إضافية
