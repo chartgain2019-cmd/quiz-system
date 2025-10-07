@@ -55,6 +55,56 @@ window.jsPDF = window.jspdf.jsPDF;
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
+
+		// إضافة أنماط CSS إضافية
+function addRetakeButtonStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        button[onclick*="retakeTest"] {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 12px !important;
+            padding: 12px 24px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3) !important;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            margin: 8px !important;
+            min-width: 160px !important;
+            text-align: center !important;
+        }
+        
+        button[onclick*="retakeTest"]:hover {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4) !important;
+        }
+        
+        button[onclick*="retakeTest"]:active {
+            transform: translateY(0) !important;
+            box-shadow: 0 2px 10px rgba(249, 115, 22, 0.3) !important;
+        }
+        
+        button[onclick*="retakeTest"]:focus {
+            outline: 2px solid #fed7aa !important;
+            outline-offset: 2px !important;
+        }
+    `;
+    
+    document.head.appendChild(style);
+    console.log('✅ تم إضافة أنماط CSS للزر');
+}
+
+// تشغيل الإصلاح تلقائياً
+setTimeout(() => {
+    fixRetakeButtonStyle();
+    addRetakeButtonStyles();
+}, 1000);
         body {
             box-sizing: border-box;
         }
@@ -8075,7 +8125,45 @@ function debugRetakeButton() {
 
 // جعل الدالة متاحة
 window.debugRetake = debugRetakeButton;
-	
+// إصلاح تصميم زر إعادة الاختبار
+function fixRetakeButtonStyle() {
+    const button = document.querySelector('button[onclick*="retakeTest"]');
+    
+    if (!button) {
+        console.log('❌ الزر غير موجود');
+        return;
+    }
+    
+    console.log('🎨 إصلاح تصميم الزر...');
+    
+    // إعادة تعيين التصميم بالكامل
+    button.className = 'bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95';
+    
+    // إضافة styles إضافية للتأكد
+    button.style.cssText += `
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        cursor: pointer !important;
+        border: none !important;
+        text-align: center !important;
+        text-decoration: none !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        line-height: normal !important;
+        min-width: 140px !important;
+        margin: 4px !important;
+    `;
+    
+    // التأكد من المحتوى
+    button.innerHTML = '🔄 إعادة الاختبار';
+    
+    console.log('✅ تم إصلاح تصميم الزر');
+    console.log('🎨 التصميم الجديد:', button.className);
+}
+
+// جعل الدالة متاحة
+window.fixStyle = fixRetakeButtonStyle;	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
