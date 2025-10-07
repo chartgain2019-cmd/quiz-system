@@ -1234,7 +1234,90 @@ function goBackToWelcome() {
     document.getElementById('resultsScreen').classList.add('hidden');
     document.getElementById('welcomeScreen').classList.remove('hidden');
 }
-	
+// بيانات تجريبية للمدارس والمعلمين
+if (!window.demoData) {
+    window.demoData = {
+        schools: {},
+        users: {}
+    };
+}
+
+// تهيئة بيانات تجريبية إذا كانت فارغة
+// بيانات تجريبية للمدارس والمعلمين
+function initializeDemoData() {
+    try {
+        // بيانات المعلمين التجريبية
+        if (!demoData.users || Object.keys(demoData.users).length === 0) {
+            demoData.users = {
+                'chartgain2019@gmail.com': {
+                    email: 'chartgain2019@gmail.com',
+                    password: '123456',
+                    name: 'أ. عبدالله الشهري',
+                    school: 'مدرسة الوليد بن عمارة الابتدائية',
+                    stage: 'ابتدائية'
+                }
+            };
+            StorageManager.setItem('teacherAccounts', demoData.users);
+            console.log('✅ تم إضافة بيانات المعلمين التجريبية');
+        }
+
+        // بيانات المدارس التجريبية
+        if (!demoData.schools || Object.keys(demoData.schools).length === 0) {
+            demoData.schools = {
+                'school1': {
+                    id: 'school1',
+                    name: 'مدرسة الوليد بن عمارة الابتدائية',
+                    teacher: 'أ. عبدالله الشهري',
+                    tests: [
+                        {
+                            name: 'اختبار الرياضيات الفصل الأول',
+                            subject: 'الرياضيات',
+                            grade: 'الرابع ابتدائي',
+                            questions: [
+                                { question: 'ما هو ناتج ٥ + ٣؟', options: ['٧', '٨', '٩', '١٠'], correct: 1 }
+                            ]
+                        }
+                    ]
+                }
+            };
+            StorageManager.setItem('demoSchoolsData', demoData.schools);
+            console.log('✅ تم إضافة بيانات المدارس التجريبية');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في initializeDemoData:', error);
+    }
+}
+
+// بيانات نتائج تجريبية
+function initializeSampleResults() {
+    try {
+        const existingResults = loadResults();
+        if (existingResults.length === 0) {
+            const sampleResults = [
+                {
+                    id: Date.now(),
+                    name: 'محمد أحمد',
+                    grade: 'الرابع ابتدائي',
+                    class: '4أ',
+                    school: 'مدرسة الوليد بن عمارة الابتدائية',
+                    teacher: 'أ. عبدالله الشهري',
+                    test: 'اختبار الرياضيات الفصل الأول',
+                    subject: 'الرياضيات',
+                    score: 4,
+                    total: 5,
+                    percentage: 80,
+                    gradeLevel: 'جيد جداً',
+                    date: new Date().toLocaleDateString('ar-SA'),
+                    timestamp: Date.now()
+                }
+            ];
+            StorageManager.setItem('testResults', sampleResults);
+            console.log('✅ تم إضافة نتائج تجريبية');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في initializeSampleResults:', error);
+    }
+}
 	
 // ========== أنظمة الاستقرار والأمان المحسنة ==========
 // ========== حل نهائي لأخطاء الامتدادات الخارجية ==========
@@ -6677,75 +6760,38 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         console.log('🚀 بدء تحميل نظام الاختبارات التفاعلي...');
         
-        // تهيئة أنظمة الاستقرار
+        // 1. تهيئة أنظمة الاستقرار
         SystemRecovery.initialize();
         
-        // تهيئة نظام التخزين
+        // 2. تهيئة نظام التخزين
         StorageManager.initializeStorage();
         
-        // تحميل البيانات المحفوظة
+        // 3. تحميل البيانات المحفوظة
         loadTeacherAccounts();
         
-        // تحميل بيانات المدارس
+        // 4. تحميل بيانات المدارس
         const storedSchools = StorageManager.getItem('demoSchoolsData');
         if (storedSchools) {
             demoData.schools = storedSchools;
             console.log('تم تحميل بيانات المدارس:', Object.keys(storedSchools).length, 'مدرسة');
         }
         
-        // تحميل المدارس للمعلمين الحاليين
+        // 5. إضافة بيانات تجريبية إذا كانت فارغة
+        initializeDemoData();
+        
+        // 6. إضافة نتائج تجريبية إذا كانت فارغة  
+        initializeSampleResults();
+        
+        // 7. تحميل المدارس للمعلمين الحاليين
         loadSchoolsForExistingTeachers();
         
-        // تحديث الإحصائيات
+        // 8. تحديث الإحصائيات
         updateWelcomeStatistics();
         
-        // إعداد مستمعي الأحداث
+        // 9. إعداد مستمعي الأحداث
         setupEventListeners();
         
-        // التحقق من وجود جلسة سابقة واستعادتها
-        const previousSession = SystemRecovery.recoverPreviousSession();
-        if (previousSession && previousSession.testInProgress) {
-            console.log('تم اكتشاف جلسة اختبار سابقة:', previousSession);
-            // يمكن إضافة منطق استعادة الجلسة هنا إذا لزم الأمر
-        }
-        
-        console.log('✅ تم تحميل النظام بنجاح');
-        
-    } catch (error) {
-        ErrorHandler.logError(error, 'DOMContentLoaded');
-    }
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        console.log('🚀 بدء تحميل نظام الاختبارات التفاعلي...');
-        
-        // تهيئة أنظمة الاستقرار
-        SystemRecovery.initialize();
-        
-        // تهيئة نظام التخزين
-        StorageManager.initializeStorage();
-        
-        // تحميل البيانات المحفوظة
-        loadTeacherAccounts();
-        
-        // تحميل بيانات المدارس
-        const storedSchools = StorageManager.getItem('demoSchoolsData');
-        if (storedSchools) {
-            demoData.schools = storedSchools;
-            console.log('تم تحميل بيانات المدارس:', Object.keys(storedSchools).length, 'مدرسة');
-        }
-        
-        // تحميل المدارس للمعلمين الحاليين
-        loadSchoolsForExistingTeachers();
-        
-        // تحديث الإحصائيات من الخادم ← أضف هذا السطر
-        updateWelcomeStatistics();
-        
-        // إعداد مستمعي الأحداث
-        setupEventListeners();
-        
-        // التحقق من وجود جلسة سابقة واستعادتها
+        // 10. التحقق من وجود جلسة سابقة
         const previousSession = SystemRecovery.recoverPreviousSession();
         if (previousSession && previousSession.testInProgress) {
             console.log('تم اكتشاف جلسة اختبار سابقة:', previousSession);
@@ -6754,6 +6800,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ تم تحميل النظام بنجاح');
         
     } catch (error) {
+        console.error('❌ خطأ في تحميل النظام:', error);
         ErrorHandler.logError(error, 'DOMContentLoaded');
     }
 });
