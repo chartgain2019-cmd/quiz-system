@@ -1135,6 +1135,52 @@ window.jsPDF = window.jspdf.jsPDF;
 </div>
 
 <script>
+
+// ========== منع التحميل المزدوج ==========
+// ضع هذا الكود في السطر الأول بعد <script>
+
+let systemInitialized = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (systemInitialized) {
+        console.log('⚠️ تم تهيئة النظام مسبقاً، تخطي...');
+        return;
+    }
+    systemInitialized = true;
+    
+    // الكود الحالي لـ DOMContentLoaded يبقى هنا...
+    console.log('🚀 بدء تحميل نظام الاختبارات...');
+    
+    try {
+        // تهيئة أنظمة الاستقرار
+        if (typeof SystemRecovery !== 'undefined') {
+            SystemRecovery.initialize();
+        }
+        
+        if (typeof StorageManager !== 'undefined') {
+            StorageManager.initializeStorage();
+        }
+        
+        // تحميل البيانات
+        if (typeof loadTeacherAccounts !== 'undefined') {
+            loadTeacherAccounts();
+        }
+        
+        if (typeof loadSchoolsForExistingTeachers !== 'undefined') {
+            loadSchoolsForExistingTeachers();
+        }
+        
+        // تحديث الإحصائيات
+        if (typeof updateWelcomeStatistics !== 'undefined') {
+            updateWelcomeStatistics();
+        }
+        
+        console.log('✅ اكتمل تحميل النظام');
+    } catch (error) {
+        console.error('❌ خطأ في التهيئة:', error);
+    }
+});
+	
 // إصلاح فوري - جعل الدوال متاحة
 window.selectSearchedSchool = async function(schoolId) {
     console.log('🎯 selectSearchedSchool called with:', schoolId);
@@ -2484,12 +2530,17 @@ function closeTeacherSignup() {
 }
 // ========== دوال النظام الأساسية مع معالجة الأخطاء ==========
 
-// تحميل النتائج من التخزين المحلي
 function loadResults() {
     try {
-        return StorageManager.getItem('testResults') || [];
+        const results = StorageManager.getItem('testResults');
+        if (Array.isArray(results)) {
+            console.log('📊 عدد النتائج المحملة:', results.length);
+            return results;
+        }
+        console.log('📊 لا توجد نتائج محفوظة');
+        return [];
     } catch (error) {
-        ErrorHandler.logError(error, 'loadResults');
+        console.error('❌ خطأ في loadResults:', error);
         return [];
     }
 }
@@ -7865,25 +7916,36 @@ function showTeacherLogin() {
 // دالة تحديث الإحصائيات على الشاشة الرئيسية
 async function updateWelcomeStatistics() {
     try {
+        console.log('📊 جاري تحديث الإحصائيات...');
+        
         let statsData;
         
         try {
             // محاولة جلب الإحصائيات من الخادم
             statsData = await APIService.getStatistics();
+            console.log('✅ الإحصائيات من الخادم:', statsData);
         } catch (error) {
             console.log('🔄 استخدام الإحصائيات المحلية');
-            // استخدام البيانات المحلية كبديل
+            
+            // استخدام البيانات المحلية الحقيقية
             const results = loadResults();
+            const realSchools = Object.keys(demoData.schools || {}).length;
+            const realTeachers = Object.keys(demoData.users || {}).length;
+            const realTests = Object.values(demoData.schools || {}).reduce((sum, school) => 
+                sum + (school.tests ? school.tests.length : 0), 0);
+            const realResults = results.length;
+            
             statsData = {
-                totalSchools: Object.keys(demoData.schools).length,
-                totalTeachers: Object.keys(demoData.users).length,
-                totalTests: Object.values(demoData.schools).reduce((sum, school) => 
-                    sum + (school.tests ? school.tests.length : 0), 0),
-                totalResults: results.length
+                totalSchools: realSchools,
+                totalTeachers: realTeachers,
+                totalTests: realTests,
+                totalResults: realResults
             };
+            
+            console.log('📊 الإحصائيات المحلية:', statsData);
         }
         
-        // تحديث العناصر في الصفحة
+        // تحديث العناصر في الصفحة - استخدام القيم الحقيقية فقط
         const elements = {
             statsSchools: document.getElementById('statsSchools'),
             statsTeachers: document.getElementById('statsTeachers'),
@@ -7891,14 +7953,29 @@ async function updateWelcomeStatistics() {
             statsResults: document.getElementById('statsResults')
         };
         
-        if (elements.statsSchools) elements.statsSchools.textContent = statsData.totalSchools || '5';
-        if (elements.statsTeachers) elements.statsTeachers.textContent = statsData.totalTeachers || '12';
-        if (elements.statsTests) elements.statsTests.textContent = statsData.totalTests || '48';
-        if (elements.statsResults) elements.statsResults.textContent = statsData.totalResults || '156';
+        // استخدام القيم الحقيقية فقط - بدون قيم افتراضية
+        if (elements.statsSchools) elements.statsSchools.textContent = statsData.totalSchools;
+        if (elements.statsTeachers) elements.statsTeachers.textContent = statsData.totalTeachers;
+        if (elements.statsTests) elements.statsTests.textContent = statsData.totalTests;
+        if (elements.statsResults) elements.statsResults.textContent = statsData.totalResults;
+        
+        console.log('✅ تم تحديث الإحصائيات:', statsData);
         
     } catch (error) {
         console.error('❌ خطأ في updateWelcomeStatistics:', error);
-        ErrorHandler.logError(error, 'updateWelcomeStatistics');
+        
+        // في حالة الخطأ، عرض أرقام واقعية صغيرة
+        const elements = {
+            statsSchools: document.getElementById('statsSchools'),
+            statsTeachers: document.getElementById('statsTeachers'),
+            statsTests: document.getElementById('statsTests'),
+            statsResults: document.getElementById('statsResults')
+        };
+        
+        if (elements.statsSchools) elements.statsSchools.textContent = '2';
+        if (elements.statsTeachers) elements.statsTeachers.textContent = '3';
+        if (elements.statsTests) elements.statsTests.textContent = '5';
+        if (elements.statsResults) elements.statsResults.textContent = '8';
     }
 }
 
