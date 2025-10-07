@@ -1060,7 +1060,10 @@ setTimeout(() => {
                                 <button onclick="checkTestData()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
                                       فحص الاختبارات
                                 </button>
-                             </div>
+                                <button onclick="debugSchoolData()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                     تحقق من البيانات
+                                </button> 
+							 </div>
                           <p class="text-xs text-yellow-700 mt-2">
                                  هذه الأدوات خاصة بالمسؤول وتظهر فقط لحساب chartgain2019@gmail.com
                      </p>
@@ -8321,214 +8324,164 @@ function fixRetakeButtonStyle() {
 window.fixStyle = fixRetakeButtonStyle;	
 // ========== دوال إصلاح وإظهار جميع الاختبارات ==========
 
-// ========== الإصلاح النهائي مع التأكد من الحفظ ==========
+// ========== الحل النهائي المضمون ==========
 
 window.fixTestQuestions = function() {
     try {
-        console.log('🎯 بدء الإصلاح مع التأكد من الحفظ...');
+        console.log('🎯 الحل النهائي المضمون...');
         
-        const school = demoData.schools['school_default'];
-        if (!school) {
-            alert('❌ المدرسة غير موجودة');
-            return;
-        }
-        
-        // التأكد من وجود مصفوفة tests
-        if (!school.tests) {
-            school.tests = [];
-            console.log('✅ تم إنشاء مصفوفة الاختبارات الجديدة');
-        }
-        
-        // مسح الاختبارات الحالية
-        school.tests.length = 0;
-        
-        // اختبار الرياضيات
-        const mathTest = {
-            name: 'اختبار الرياضيات الفصل الأول',
-            subject: 'الرياضيات',
-            grade: 'الرابع ابتدائي',
-            timerPerQuestion: 30,
-            difficulty: 'متوسط',
-            description: 'اختبار الفصل الأول في مادة الرياضيات',
-            questions: [
-                {
-                    question: 'ما هو ناتج ١٥ + ٢٧؟',
-                    options: ['٤٢', '٣٢', '٥٢', '٣٧'],
-                    correct: 0
-                },
-                {
-                    question: 'ما هو العدد الذي يمثل خمسة وعشرين؟',
-                    options: ['٥٢', '٢٥', '٢٠٥', '٢٥٠'],
-                    correct: 1
-                },
-                {
-                    question: 'ما هو ناتج ٨ × ٧؟',
-                    options: ['٥٤', '٥٦', '٦٤', '٤٨'],
-                    correct: 1
-                },
-                {
-                    question: 'ما هو الكسر الذي يمثل النصف؟',
-                    options: ['١/٤', '١/٢', '١/٣', '٢/٣'],
-                    correct: 1
-                },
-                {
-                    question: 'ما هو محيط المربع الذي طول ضلعه ٥ سم؟',
-                    options: ['١٠ سم', '١٥ سم', '٢٠ سم', '٢٥ سم'],
-                    correct: 2
-                }
-            ]
-        };
-        school.tests.push(mathTest);
-        
-        // اختبار العلوم
-        const scienceTest = {
-            name: 'اختبار العلوم الفصل الأول',
-            subject: 'العلوم',
-            grade: 'الرابع ابتدائي',
-            timerPerQuestion: 30,
-            difficulty: 'متوسط',
-            description: 'اختبار الفصل الأول في مادة العلوم',
-            questions: [
-                {
-                    question: 'أي من هذه الكواكب أقرب إلى الشمس؟',
-                    options: ['الزهرة', 'المريخ', 'عطارد', 'الأرض'],
-                    correct: 2
-                },
-                {
-                    question: 'ما هي العملية التي تنتج بها النباتات غذاءها؟',
-                    options: ['التنفس', 'البناء الضوئي', 'التبخر', 'التكاثر'],
-                    correct: 1
-                },
-                {
-                    question: 'أي من هذه الحيوانات من الثدييات؟',
-                    options: ['التمساح', 'الحوت', 'السلحفاة', 'الأفعى'],
-                    correct: 1
-                },
-                {
-                    question: 'ما هو الغاز الذي تتنفسه النباتات ليلاً؟',
-                    options: ['الأكسجين', 'ثاني أكسيد الكربون', 'النيتروجين', 'الهيدروجين'],
-                    correct: 0
-                },
-                {
-                    question: 'أي من هذه الأجسام يوصل الكهرباء؟',
-                    options: ['الخشب', 'البلاستيك', 'الحديد', 'المطاط'],
-                    correct: 2
-                }
-            ]
-        };
-        school.tests.push(scienceTest);
-        
-        console.log('📝 البيانات قبل الحفظ:', {
-            مدرسة: school.name,
-            عدد_الاختبارات: school.tests.length,
-            الاختبارات: school.tests.map(t => ({ مادة: t.subject, أسئلة: t.questions.length }))
-        });
-        
-        // الحفظ مع التأكد
-        let saveAttempts = 0;
-        let saveSuccess = false;
-        
-        while (saveAttempts < 3 && !saveSuccess) {
-            saveAttempts++;
-            console.log(`🔄 محاولة حفظ رقم ${saveAttempts}...`);
-            
-            saveSuccess = StorageManager.setItem('demoSchoolsData', demoData.schools);
-            
-            if (saveSuccess) {
-                console.log('✅ تم الحفظ بنجاح في المحاولة', saveAttempts);
-                
-                // التحقق من الحفظ
-                const savedData = StorageManager.getItem('demoSchoolsData');
-                const savedSchool = savedData['school_default'];
-                
-                if (savedSchool && savedSchool.tests) {
-                    console.log('✅ التحقق من الحفظ:', {
-                        اختبارات_محفوظة: savedSchool.tests.length,
-                        تفاصيل: savedSchool.tests.map(t => t.subject)
-                    });
-                    
-                    if (savedSchool.tests.length === 2) {
-                        alert(`🎉 تم الإصلاح والحفظ بنجاح!\n\n✅ اختبار الرياضيات: ٥ أسئلة\n✅ اختبار العلوم: ٥ أسئلة\n\nسيظهر كلا الاختبارين للطلاب الآن!`);
-                        
-                        // إعادة تحميل فورية
-                        setTimeout(() => {
-                            location.reload();
-                        }, 2000);
-                        return;
+        // 1. إنشاء كائن مدرسة جديد كامل
+        const newSchoolData = {
+            'school_default': {
+                id: 'school_default',
+                name: 'مدرسة الوليد بن عمارة الابتدائية',
+                teacher: 'أ. عبدالله الشهري',
+                tests: [
+                    {
+                        name: 'اختبار الرياضيات الفصل الأول',
+                        subject: 'الرياضيات',
+                        grade: 'الرابع ابتدائي',
+                        timerPerQuestion: 30,
+                        difficulty: 'متوسط',
+                        description: 'اختبار الفصل الأول في مادة الرياضيات',
+                        questions: [
+                            {
+                                question: 'ما هو ناتج ١٥ + ٢٧؟',
+                                options: ['٤٢', '٣٢', '٥٢', '٣٧'],
+                                correct: 0
+                            },
+                            {
+                                question: 'ما هو العدد الذي يمثل خمسة وعشرين؟',
+                                options: ['٥٢', '٢٥', '٢٠٥', '٢٥٠'],
+                                correct: 1
+                            },
+                            {
+                                question: 'ما هو ناتج ٨ × ٧؟',
+                                options: ['٥٤', '٥٦', '٦٤', '٤٨'],
+                                correct: 1
+                            },
+                            {
+                                question: 'ما هو الكسر الذي يمثل النصف؟',
+                                options: ['١/٤', '١/٢', '١/٣', '٢/٣'],
+                                correct: 1
+                            },
+                            {
+                                question: 'ما هو محيط المربع الذي طول ضلعه ٥ سم؟',
+                                options: ['١٠ سم', '١٥ سم', '٢٠ سم', '٢٥ سم'],
+                                correct: 2
+                            }
+                        ]
+                    },
+                    {
+                        name: 'اختبار العلوم الفصل الأول',
+                        subject: 'العلوم',
+                        grade: 'الرابع ابتدائي',
+                        timerPerQuestion: 30,
+                        difficulty: 'متوسط',
+                        description: 'اختبار الفصل الأول في مادة العلوم',
+                        questions: [
+                            {
+                                question: 'أي من هذه الكواكب أقرب إلى الشمس؟',
+                                options: ['الزهرة', 'المريخ', 'عطارد', 'الأرض'],
+                                correct: 2
+                            },
+                            {
+                                question: 'ما هي العملية التي تنتج بها النباتات غذاءها؟',
+                                options: ['التنفس', 'البناء الضوئي', 'التبخر', 'التكاثر'],
+                                correct: 1
+                            },
+                            {
+                                question: 'أي من هذه الحيوانات من الثدييات؟',
+                                options: ['التمساح', 'الحوت', 'السلحفاة', 'الأفعى'],
+                                correct: 1
+                            },
+                            {
+                                question: 'ما هو الغاز الذي تتنفسه النباتات ليلاً؟',
+                                options: ['الأكسجين', 'ثاني أكسيد الكربون', 'النيتروجين', 'الهيدروجين'],
+                                correct: 0
+                            },
+                            {
+                                question: 'أي من هذه الأجسام يوصل الكهرباء؟',
+                                options: ['الخشب', 'البلاستيك', 'الحديد', 'المطاط'],
+                                correct: 2
+                            }
+                        ]
                     }
-                }
+                ]
             }
-            
-            if (!saveSuccess) {
-                console.log('❌ فشل الحفظ في المحاولة', saveAttempts);
-                if (saveAttempts < 3) {
-                    alert(`⚠️ محاولة حفظ ${saveAttempts} فشلت... جاري المحاولة مرة أخرى`);
-                }
-            }
-        }
+        };
         
-        if (!saveSuccess) {
-            alert('❌ فشل حفظ البيانات بعد 3 محاولات. قد تكون مساحة التخزين ممتلئة.');
+        // 2. تحديث البيانات في الذاكرة
+        Object.assign(demoData.schools, newSchoolData);
+        
+        // 3. الحفظ المباشر في التخزين
+        console.log('💾 جاري الحفظ المباشر...');
+        const saveSuccess = StorageManager.setItem('demoSchoolsData', demoData.schools);
+        
+        if (saveSuccess) {
+            console.log('✅ تم الحفظ بنجاح');
+            
+            // 4. التحقق من الحفظ
+            const verifyData = StorageManager.getItem('demoSchoolsData');
+            const verifySchool = verifyData['school_default'];
+            
+            if (verifySchool && verifySchool.tests && verifySchool.tests.length === 2) {
+                const message = `🎉 تم الإصلاح النهائي بنجاح!\n\n✅ اختبار الرياضيات: ٥ أسئلة\n✅ اختبار العلوم: ٥ أسئلة\n\nالآن سيظهر كلا الاختبارين للطلاب!`;
+                alert(message);
+                
+                // إعادة تحميل فورية
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                alert('❌ حدث خطأ في التحقق من الحفظ');
+            }
+        } else {
+            alert('❌ فشل في حفظ البيانات');
         }
         
     } catch (error) {
-        console.error('❌ خطأ في الإصلاح:', error);
+        console.error('❌ خطأ في الحل النهائي:', error);
         alert('❌ حدث خطأ: ' + error.message);
     }
 };
 
-// دالة فحص محسنة
-window.checkTestData = function() {
+// ========== التحقق الفوري من البيانات ==========
+
+window.debugSchoolData = function() {
     try {
-        console.log('🔍 فحص شامل مع التحقق من الحفظ...');
+        console.log('🔍 التحقق الفوري من بيانات المدرسة...');
         
-        // البيانات من الذاكرة
-        const memorySchool = demoData.schools['school_default'];
-        // البيانات من التخزين
-        const storageData = StorageManager.getItem('demoSchoolsData');
-        const storageSchool = storageData ? storageData['school_default'] : null;
+        const school = demoData.schools['school_default'];
+        const storedData = StorageManager.getItem('demoSchoolsData');
+        const storedSchool = storedData ? storedData['school_default'] : null;
         
-        let report = '📊 التقرير الشامل:\n\n';
+        console.log('🏫 المدرسة في الذاكرة:', school);
+        console.log('💾 المدرسة في التخزين:', storedSchool);
         
-        // فحص الذاكرة
-        report += '🧠 البيانات في الذاكرة:\n';
-        if (memorySchool && memorySchool.tests) {
-            memorySchool.tests.forEach((test, index) => {
-                report += `   ${test.subject}: ${test.questions.length} سؤال\n`;
+        let report = '🔍 التحقق الفوري:\n\n';
+        
+        if (school && school.tests) {
+            report += '🧠 في الذاكرة:\n';
+            school.tests.forEach((test, i) => {
+                report += `   ${i+1}. ${test.subject}: ${test.questions?.length || 0} سؤال\n`;
             });
-            report += `   الإجمالي: ${memorySchool.tests.length} اختبار\n\n`;
-        } else {
-            report += '   ❌ لا توجد بيانات في الذاكرة\n\n';
         }
         
-        // فحص التخزين
-        report += '💾 البيانات في التخزين:\n';
-        if (storageSchool && storageSchool.tests) {
-            storageSchool.tests.forEach((test, index) => {
-                report += `   ${test.subject}: ${test.questions.length} سؤال\n`;
+        if (storedSchool && storedSchool.tests) {
+            report += '\n💾 في التخزين:\n';
+            storedSchool.tests.forEach((test, i) => {
+                report += `   ${i+1}. ${test.subject}: ${test.questions?.length || 0} سؤال\n`;
             });
-            report += `   الإجمالي: ${storageSchool.tests.length} اختبار\n\n`;
-        } else {
-            report += '   ❌ لا توجد بيانات في التخزين\n\n';
-        }
-        
-        // المقارنة
-        const memoryCount = memorySchool?.tests?.length || 0;
-        const storageCount = storageSchool?.tests?.length || 0;
-        
-        if (memoryCount === storageCount) {
-            report += '✅ الذاكرة والتخزين متطابقان\n';
-        } else {
-            report += `❌ هناك اختلاف: الذاكرة (${memoryCount}) ≠ التخزين (${storageCount})\n`;
         }
         
         alert(report);
         
     } catch (error) {
-        console.error('❌ خطأ في الفحص:', error);
-        alert('❌ حدث خطأ أثناء الفحص');
+        console.error('❌ خطأ في التحقق:', error);
     }
 };
+	
 </script>
    <!-- تذييل متميز -->
     <footer class="bg-gradient-to-r from-blue-800 to-purple-900 text-white py-4 text-center border-t border-blue-600">
