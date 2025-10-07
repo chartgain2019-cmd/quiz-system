@@ -2758,8 +2758,54 @@ async function teacherSignup(event) {
 
 // ========== تهيئة النظام ==========
 
-// منع التحميل المزدوج
-     
+// ========== منع التحميل المزدوج النهائي ==========
+if (window.quizSystemLoaded) {
+    console.log('🛑 النظام مُحمّل مسبقاً، إيقاف التحميل...');
+} else {
+    window.quizSystemLoaded = true;
+    
+    // تعريف الدوال الأساسية فوراً
+    window.showStudentAccess = function() {
+        console.log('👨‍🎓 عرض شاشة دخول الطلاب');
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('studentAccessScreen').classList.remove('hidden');
+    };
+
+    window.showTeacherLogin = function() {
+        console.log('👨‍💼 عرض شاشة تسجيل دخول المعلمين');
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('teacherLoginScreen').classList.remove('hidden');
+    };
+
+    window.closeTeacherLogin = function() {
+        document.getElementById('teacherLoginScreen').classList.add('hidden');
+    };
+
+    window.showTeacherSignup = function() {
+        document.getElementById('teacherLoginScreen').classList.add('hidden');
+        document.getElementById('teacherSignupScreen').classList.remove('hidden');
+    };
+
+    window.closeTeacherSignup = function() {
+        document.getElementById('teacherSignupScreen').classList.add('hidden');
+    };
+
+    window.goBackToWelcome = function() {
+        const screens = [
+            'studentAccessScreen', 'teacherDashboard', 'testScreen', 
+            'resultsScreen', 'teacherLoginScreen', 'teacherSignupScreen'
+        ];
+        screens.forEach(screen => {
+            const element = document.getElementById(screen);
+            if (element) element.classList.add('hidden');
+        });
+        document.getElementById('welcomeScreen').classList.remove('hidden');
+    };
+
+    // تهيئة النظام عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 بدء تحميل نظام الاختبارات...');
+        
         try {
             // تهيئة البيانات الأساسية
             if (typeof initializeDemoData !== 'undefined') {
@@ -2784,6 +2830,7 @@ async function teacherSignup(event) {
         }
     });
 }
+// ========== نهاية منع التحميل المزدوج ==========
 
 // حل فوري لأخطاء hotkeys
 if (typeof hotkeys === 'undefined') {
