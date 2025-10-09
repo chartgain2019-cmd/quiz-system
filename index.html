@@ -6342,10 +6342,15 @@ function getCurrentScreen() {
             </p>
         </div>
     </footer>
-	<script>
-/* === HOTFIX v3 — refresh tests list after create/delete & on student screen === */
+<script>
+/* === HOTFIX v4 — force-refresh student tests list & robust selectTest binding === */
 (function(){
-  // --- BASE_API
+  // ---------- Utils ----------
+  const $ = (s,r=document)=>r.querySelector(s);
+  const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+  const sleep = (ms)=> new Promise(res=>setTimeout(res,ms));
+
+  // ---------- BASE_API ----------
   try{
     if (typeof window.BASE_API === 'string' && !/\/api$/.test(window.BASE_API)) {
       window.BASE_API = window.BASE_API.replace(/\/?$/, '') + '/api';
@@ -6354,10 +6359,10 @@ function getCurrentScreen() {
     } else if (!window.BASE_API) {
       window.BASE_API = 'https://quiz-system-api.onrender.com/api';
     }
-    console.info('[HOTFIX v3] BASE_API =', window.BASE_API);
-  }catch(e){ console.warn('[HOTFIX v3] BASE_API normalize failed', e); }
+    console.info('[HOTFIX v4] BASE_API =', window.BASE_API);
+  }catch(e){ console.warn('[HOTFIX v4] BASE_API normalize failed', e); }
 
-  // --- Storage tolerant
+  // ---------- Storage tolerant ----------
   try{
     if (window.StorageManager && typeof window.StorageManager.getItem === 'function') {
       const orig = window.StorageManager.getItem.bind(window.StorageManager);
@@ -6369,22 +6374,41 @@ function getCurrentScreen() {
             if (!raw) return null;
             try { const parsed = JSON.parse(raw); return (parsed && parsed.v !== undefined) ? parsed.v : parsed; }
             catch { return raw; }
-          }catch(e2){ console.error('[HOTFIX v3] Storage fallback failed', e2); return null; }
+          }catch(e2){ console.error('[HOTFIX v4] Storage fallback failed', e2); return null; }
         }
       };
-      console.info('[HOTFIX v3] Storage.getItem patched');
+      console.info('[HOTFIX v4] Storage.getItem patched');
     }
   }catch(e){}
 
-  // --- Safe fallbacks
+  // ---------- Safe fallbacks ----------
   window.getFingerPrintSwitch = window.getFingerPrintSwitch || function(){ return false; };
   window.all_funcdisable = (typeof window.all_funcdisable === 'function') ? window.all_funcdisable : function(){ /* no-op */ };
 
-  // --- Cache + helpers
+  // ---------- School/Test cache ----------
   let __currentSchool = null;
   const __testsBySchool = new Map();
 
-  const $ = (s,r=document)=>r.querySelector(s);
+  function guessCurrentSchoolFromDOM(){
+    const el = $('#chosenSchoolId') || $('[data-school-id]') || $('#chosenSchoolName');
+    if (el && (el.value || el.dataset?.schoolId || el.dataset?.id)) {
+      return { id: el.value || el.dataset.schoolId || el.dataset.id, name: el.textContent || el.value || '' };
+    }
+    // جرّب select للمدارس
+    const sel = $('#schoolSelect') || $$('select').find(s=>/school/i.test(s.id||s.name||''));
+    if (sel && sel.value) return { id: sel.value, name: sel.options[sel.selectedIndex]?.text || '' };
+    return null;
+  }
+
+  function guessCurrentSchoolFromStorage(){
+    try{
+      const a = localStorage.getItem('currentSchool') || localStorage.getItem('selectedSchool');
+      if (a){ try{ const x = JSON.parse(a); if (x?.id) return x; }catch{} }
+      const demo = localStorage.getItem('demoSchoolsData');
+      if (demo) { try{ const arr = JSON.parse(demo); if (Array.isArray(arr) && arr[0]?.id) return arr[0]; }catch{} }
+    }catch{}
+    return null;
+  }
 
   async function apiGet(path){
     if (window.ApiClient && typeof window.ApiClient.get === 'function') return window.ApiClient.get(path);
@@ -6396,135 +6420,190 @@ function getCurrentScreen() {
   async function ensureSchoolTests(school){
     if (!school || !school.id) throw new Error('مدرسة غير معرّفة');
     const sid = String(school.id);
-    if (!__testsBySchool.has(sid) || !Array.isArray(__testsBySchool.get(sid))) {
-      __testsBySchool.set(sid, []);
-    }
-    if (__testsBySchool.get(sid).length === 0) {
+    if (!__testsBySchool.has(sid)) __testsBySchool.set(sid, []);
+    if (!__testsBySchool.get(sid).length){
       const tests = await apiGet(`/schools/${sid}/tests`);
       __testsBySchool.set(sid, Array.isArray(tests)?tests:[]);
     }
     return __testsBySchool.get(sid);
   }
 
-  function renderTestsSelect(tests){
-    const sel = document.getElementById('testSelect');
-    if (!sel) return;
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">اختر الاختبار</option>';
-    (tests||[]).forEach(t=>{
-      const o = document.createElement('option');
-      o.value = t.id;
-      o.textContent = t.title || t.name || ('اختبار ' + t.id);
-      sel.appendChild(o);
+  // ---------- Renderers ----------
+  function getAllStudentTestSelects(){
+    // يدعم أكثر من عنصر: testSelect, studentTestSelect, أي select فيه test/select، والقائمة البديلة
+    const selects = new Set();
+    const explicit = [
+      $('#testSelect'),
+      $('#studentTestSelect'),
+    ].filter(Boolean);
+    explicit.forEach(s=>selects.add(s));
+    $$('select').forEach(s=>{
+      const idn = (s.id||'') + ' ' + (s.name||'');
+      if (/test/i.test(idn) && /select|choose|اختيار|اختبر|test/i.test(idn)) selects.add(s);
     });
-    // احتفظ بالاختيار السابق إن كان ما يزال موجودًا
-    if (prev && tests.some(t => String(t.id)===String(prev))) sel.value = prev;
-    // اربط onchange إن لم يكن موجودًا
-    if (!sel._hotfixBound) {
-      sel.onchange = ()=> window.selectTest(sel.value);
-      sel._hotfixBound = true;
+    return Array.from(selects);
+  }
+
+  function renderTestsIntoSelects(tests){
+    const selects = getAllStudentTestSelects();
+    const prevValues = new Map();
+    selects.forEach(sel => prevValues.set(sel, sel.value));
+
+    selects.forEach(sel=>{
+      sel.innerHTML = '<option value="">اختر الاختبار</option>';
+      (tests||[]).forEach(t=>{
+        const o = document.createElement('option');
+        o.value = t.id;
+        o.textContent = t.title || t.name || ('اختبار ' + t.id);
+        sel.appendChild(o);
+      });
+      // استعادة الاختيار السابق إن أمكن
+      const prev = prevValues.get(sel);
+      if (prev && tests.some(t=>String(t.id)===String(prev))) sel.value = prev;
+      // ربط onchange إن لم يكن مضافًا
+      if (!sel._hotfixBound){
+        sel.addEventListener('change', ()=> window.selectTest(sel.value));
+        sel._hotfixBound = true;
+      }
+    });
+
+    // قائمة بديلة (UL/Div) إن وجدت
+    const list = $('#testList') || $('[data-test-list]');
+    if (list){
+      list.innerHTML = '';
+      (tests||[]).forEach(t=>{
+        const li = document.createElement('li');
+        li.className = 'cursor-pointer hover:bg-gray-50 px-3 py-2';
+        li.textContent = t.title || t.name || ('اختبار ' + t.id);
+        li.addEventListener('click', ()=> window.selectTest(t.id));
+        list.appendChild(li);
+      });
     }
   }
 
-  async function refreshTestsForCurrentSchool(){
-    if (!__currentSchool || !__currentSchool.id) return;
-    const sid = String(__currentSchool.id);
-    const tests = await apiGet(`/schools/${sid}/tests`);
-    const arr = Array.isArray(tests)?tests:[];
-    __testsBySchool.set(sid, arr);
-    renderTestsSelect(arr);
-    console.info('[HOTFIX v3] tests refreshed for school', sid, '→', arr.length);
-  }
-
-  // --- Hook selectSchool (نُحدّث الكاش والقائمة)
-  (function(){
-    const origSelectSchool = window.selectSchool;
-    window.selectSchool = async function(school){
-      __currentSchool = school || __currentSchool;
-      try{
-        if (!school) { if (typeof origSelectSchool === 'function') return origSelectSchool(school); return; }
-        const tests = await ensureSchoolTests(school);
-        renderTestsSelect(tests);
-        if (typeof origSelectSchool === 'function') { try { origSelectSchool(school); } catch(_){} }
-      }catch(e){ console.error('[HOTFIX v3] selectSchool failed', e); }
-    };
-  })();
-
-  // --- selectTest: آمنة & تُظهر فورم الطالب
-  window.selectTest = async function(testOrId){
+  async function refreshTestsForCurrentSchool({force=false}={}){
     try{
-      if (!__currentSchool || !__currentSchool.id) throw new Error('اختر مدرسة أولاً');
+      // حدد المدرسة الحالية
+      if (!__currentSchool) __currentSchool = guessCurrentSchoolFromDOM() || guessCurrentSchoolFromStorage() || __currentSchool;
+      if (!__currentSchool || !__currentSchool.id) return console.warn('[HOTFIX v4] لا يمكن تحديد المدرسة الحالية بعد.');
+
       const sid = String(__currentSchool.id);
       let tests = __testsBySchool.get(sid) || [];
-      let test = (typeof testOrId === 'object' && testOrId) ? testOrId : tests.find(t => String(t.id)===String(testOrId));
-      if (!test) {
-        // إعادة جلب فورية
+      if (force || !tests.length){
         tests = await apiGet(`/schools/${sid}/tests`);
         tests = Array.isArray(tests)?tests:[];
         __testsBySchool.set(sid, tests);
-        test = tests.find(t => String(t.id)===String(testOrId));
+      }
+      renderTestsIntoSelects(tests);
+      console.info('[HOTFIX v4] tests rendered:', tests.length, 'for school', sid);
+    }catch(e){ console.error('[HOTFIX v4] refreshTestsForCurrentSchool failed', e); }
+  }
+
+  // ---------- Hooks ----------
+  // نلفّ selectSchool لتعبئة الكاش وتحديث القوائم
+  (function(){
+    const origSelectSchool = window.selectSchool;
+    window.selectSchool = async function(school){
+      __currentSchool = school || __currentSchool || guessCurrentSchoolFromDOM() || guessCurrentSchoolFromStorage();
+      try{
+        if (__currentSchool && __currentSchool.id){
+          await ensureSchoolTests(__currentSchool);
+          await refreshTestsForCurrentSchool({force:true});
+        }
+        if (typeof origSelectSchool === 'function') { try { origSelectSchool(school); } catch(_){} }
+      }catch(e){ console.error('[HOTFIX v4] selectSchool failed', e); }
+    };
+  })();
+
+  // selectTest: صار آمن ويُظهر نموذج الطالب دائمًا
+  window.selectTest = async function(testOrId){
+    try{
+      __currentSchool = __currentSchool || guessCurrentSchoolFromDOM() || guessCurrentSchoolFromStorage();
+      if (!__currentSchool || !__currentSchool.id) throw new Error('اختر مدرسة أولاً');
+
+      const sid = String(__currentSchool.id);
+      let tests = __testsBySchool.get(sid) || [];
+      let test = (typeof testOrId==='object' && testOrId) ? testOrId : tests.find(t=>String(t.id)===String(testOrId));
+
+      if (!test){
+        await refreshTestsForCurrentSchool({force:true});
+        tests = __testsBySchool.get(sid) || [];
+        test = tests.find(t=>String(t.id)===String(testOrId));
       }
       if (!test) throw new Error('لم يتم العثور على الاختبار');
+
       window.__selectedTest = test;
 
-      // أظهر فورم بيانات الطالب
+      // أظهر نموذج الطالب/قسم الطالب
       const studentForm = $('#studentForm') || $('#studentFormArea');
       if (studentForm) { studentForm.classList.remove('hidden'); studentForm.style.display=''; }
       const studentSection = $('#studentSection') || $('#studentAccessScreen');
       if (studentSection) { studentSection.classList.remove('hidden'); }
 
-      console.info('[HOTFIX v3] selectTest OK:', test.id || test.name);
+      console.info('[HOTFIX v4] selectTest OK:', test.id || test.name);
       return test;
     }catch(e){
-      console.error('[HOTFIX v3] selectTest failed', e);
-      alert('تعذر اختيار الاختبار. اختر المدرسة ثم أعد المحاولة.');
+      console.error('[HOTFIX v4] selectTest failed', e);
+      alert('تعذر اختيار الاختبار. تأكد من اختيار المدرسة ثم أعد المحاولة.');
     }
   };
 
-  // --- نراقب إنشاء/حذف/تعديل الاختبارات: POST/DELETE/PUT على /tests
+  // لفّ fetch: أي عملية على /tests → إنعاش فوري بعد قليل (لتجاوز أي تأخير)
   (function(){
     const origFetch = window.fetch;
     window.fetch = async function(input, init={}){
       const method = (init && init.method ? init.method : 'GET').toUpperCase();
       const url = (typeof input === 'string' ? input : (input && input.url ? input.url : '')) || '';
       const res = await origFetch(input, init);
+
       try{
         if (/(POST|PUT|DELETE)/.test(method) && /\/tests(\/|$|\?)/.test(url)) {
-          // بعد إنجاز العملية: حدّث قائمة الاختبارات
-          await refreshTestsForCurrentSchool();
+          // إعادة إنعاش مضاعفة (مباشرة + بعد 1500ms) لتلافي caching/تأخير السيرفر
+          await refreshTestsForCurrentSchool({force:true});
+          await sleep(1500);
+          await refreshTestsForCurrentSchool({force:true});
         }
-        // تحديث عداد الأسئلة عند أي عملية على /questions
         if (/(POST|PUT|DELETE)/.test(method) && /\/questions(\/|$|\?)/.test(url)) {
+          // حدّث عداد الأسئلة للـ selectedTest
           if (window.__selectedTest && window.__selectedTest.id) {
             const details = await apiGet(`/tests/${window.__selectedTest.id}`);
             const count = (details && details.questions) ? details.questions.length : (details?.questionsCount || details?.totalQuestions || 0);
-            const q1 = document.getElementById('testQuestions');
-            const q2 = document.querySelector('[data-test-questions]');
-            if (q1) q1.textContent = count;
-            if (q2) q2.textContent = count;
-            console.info('[HOTFIX v3] questions count refreshed →', count);
-          } else {
-            // لو ما في selectedTest، تحديث القائمة قد يساعد
-            await refreshTestsForCurrentSchool();
+            const qEls = [ $('#testQuestions'), $('[data-test-questions]') ].filter(Boolean);
+            qEls.forEach(el=> el.textContent = count);
+            console.info('[HOTFIX v4] questions count refreshed →', count);
           }
         }
-      }catch(e){ console.warn('[HOTFIX v3] post-op refresh failed', e); }
+      }catch(e){ console.warn('[HOTFIX v4] post-op refresh failed', e); }
+
       return res;
     };
   })();
 
-  // --- عند فتح/إظهار شاشة الطالب (لو عندك زر يظهرها) حاول حدّث القائمة
+  // تحديث تلقائي عند فتح شاشة الطالب أو التركيز على حقل الاختبار
   (function(){
     const origShowStudentAccess = window.showStudentAccess;
     window.showStudentAccess = async function(){
       try{ if (typeof origShowStudentAccess === 'function') origShowStudentAccess(); }catch(_){}
-      try{ await refreshTestsForCurrentSchool(); }catch(_){}
+      await refreshTestsForCurrentSchool({force:true});
     };
+    // عند التركيز على أي select للاختبار → إنعاش
+    document.addEventListener('focusin', (e)=>{
+      const el = e.target;
+      if (el && el.tagName === 'SELECT') {
+        const idn = (el.id||'') + ' ' + (el.name||'');
+        if (/test/i.test(idn) && /select|choose|اختبار|اختر/i.test(idn)) {
+          refreshTestsForCurrentSchool({force:true});
+        }
+      }
+    });
   })();
 
-  console.info('[HOTFIX v3] loaded.');
+  // محاولة أولى بعد تحميل الصفحة
+  window.addEventListener('DOMContentLoaded', ()=>{ setTimeout(()=>refreshTestsForCurrentSchool({force:false}), 500); });
+  console.info('[HOTFIX v4] loaded.');
 })();
 </script>
+
 
 
 </body>
