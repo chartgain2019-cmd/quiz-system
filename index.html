@@ -6344,5 +6344,97 @@ function getCurrentScreen() {
     </footer>
 	<script src="quiz-hotfix.js">
 	</script>
+	<script>
+/* === INLINE HOTFIX (no file needed) === */
+(function(){
+  // 1) BASE_API → تأكد ينتهي بـ /api
+  try{
+    if (typeof window.BASE_API === 'string' && !/\/api$/.test(window.BASE_API)) {
+      window.BASE_API = window.BASE_API.replace(/\/?$/, '') + '/api';
+      console.info('[HOTFIX] BASE_API:', window.BASE_API);
+    } else if ((!window.BASE_API) && window.CONFIG && window.CONFIG.BASE_API) {
+      window.BASE_API = String(window.CONFIG.BASE_API);
+      console.info('[HOTFIX] BASE_API from CONFIG:', window.BASE_API);
+    }
+  }catch(e){ console.warn('[HOTFIX] BASE_API normalize failed', e); }
+
+  // 2) StorageManager.getItem يتحمل القيم غير JSON (مثل JWT نصّي)
+  try{
+    if (window.StorageManager && typeof window.StorageManager.getItem === 'function') {
+      const orig = window.StorageManager.getItem.bind(window.StorageManager);
+      window.StorageManager.getItem = function(key){
+        try { return orig(key); }
+        catch(e){
+          try{
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            try { const parsed = JSON.parse(raw); return (parsed && parsed.v !== undefined) ? parsed.v : parsed; }
+            catch { return raw; }
+          }catch(e2){ console.error('[HOTFIX] Storage fallback failed', e2); return null; }
+        }
+      };
+      console.info('[HOTFIX] Storage.getItem patched');
+    }
+  }catch(e){ console.warn('[HOTFIX] Storage patch failed', e); }
+
+  // 3) حمايات لدوال قد تكون غير معرّفة
+  window.getFingerPrintSwitch = window.getFingerPrintSwitch || function(){ return false; };
+  window.all_funcdisable = typeof window.all_funcdisable === 'function' ? window.all_funcdisable : function(){ console.info('[HOTFIX] all_funcdisable noop'); };
+
+  // 4) selectSchool/selectTest آمنان مع كاش داخلي للاختبارات
+  (function(){
+    let __currentSchool = null;
+    const __testsBySchool = new Map();
+
+    const fetchTests = async (sid)=>{
+      if (window.ApiClient && typeof window.ApiClient.get === 'function') {
+        return await window.ApiClient.get(`/schools/${sid}/tests`);
+      }
+      const base = (typeof window.BASE_API === 'string' ? window.BASE_API : (window.CONFIG && window.CONFIG.BASE_API)) || '';
+      const res = await fetch(`${base}/schools/${sid}/tests`, { credentials:'include' });
+      return await res.json();
+    };
+
+    const origSelectSchool = window.selectSchool;
+    window.selectSchool = async function(school){
+      __currentSchool = school || __currentSchool;
+      try{
+        if (!school) { if (typeof origSelectSchool === 'function') return origSelectSchool(school); return; }
+        const tests = await fetchTests(school.id);
+        __testsBySchool.set(String(school.id), Array.isArray(tests) ? tests : []);
+        const sel = document.getElementById('testSelect');
+        if (sel) {
+          sel.innerHTML = '<option value="">اختر الاختبار</option>';
+          (tests || []).forEach(t=>{
+            const o = document.createElement('option');
+            o.value = t.id;
+            o.textContent = t.title || t.name || ('اختبار ' + t.id);
+            sel.appendChild(o);
+          });
+          sel.onchange = ()=> window.selectTest(sel.value);
+        }
+        if (typeof origSelectSchool === 'function') try { origSelectSchool(school); } catch(_){}
+      }catch(e){ console.error('[HOTFIX] selectSchool failed', e); }
+    };
+
+    const origSelectTest = window.selectTest;
+    window.selectTest = function(testOrId){
+      try{
+        const schoolId = __currentSchool && __currentSchool.id ? String(__currentSchool.id) : null;
+        const tests = schoolId ? (__testsBySchool.get(schoolId) || []) : [];
+        let test = (typeof testOrId === 'object' && testOrId) ? testOrId : tests.find(t => String(t.id) === String(testOrId));
+        if (!test && typeof origSelectTest === 'function') { try { return origSelectTest(testOrId); } catch(_){} }
+        if (!test) throw new Error('لم يتم العثور على الاختبار');
+        window.__selectedTest = test;
+        console.info('[HOTFIX] selectTest OK:', test.id || test.name);
+        return test;
+      }catch(e){ console.error('[HOTFIX] selectTest failed', e); }
+    };
+  })();
+
+  console.info('[HOTFIX] Inline patch loaded.');
+})();
+</script>
+
 </body>
 </html>
