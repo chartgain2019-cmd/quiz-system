@@ -6344,19 +6344,18 @@ function getCurrentScreen() {
     </footer>
 <script>
 /* =========================================================================
-   HOTFIX v6 — robust school ID discovery + smart tests endpoint + UI refresh
+   HOTFIX v7 — لا نخمن مسارات API؛ نقرأ الردود الناجحة لكودك ونحدّث قوائم الطالب
    ضع هذا الكود بعد جميع السكربتات وقبل </body>. لا تضف أي ترقيع آخر معه.
    ========================================================================= */
 (function(){
-  // ---------- utils ----------
+  // ===== Utils =====
   const $  = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
-  function log(){ console.info.apply(console, ['[HOTFIX v6]'].concat([].slice.call(arguments))); }
-  function warn(){ console.warn.apply(console, ['[HOTFIX v6]'].concat([].slice.call(arguments))); }
-  function err(){ console.error.apply(console, ['[HOTFIX v6]'].concat([].slice.call(arguments))); }
+  const log  = (...a)=>console.info('[HOTFIX v7]', ...a);
+  const warn = (...a)=>console.warn('[HOTFIX v7]', ...a);
 
-  // ---------- BASE_API ----------
+  // ===== BASE_API (غير حاسم هنا، لكن نبقيه منضبط) =====
   try{
     if (typeof window.BASE_API === 'string' && !/\/api$/.test(window.BASE_API)) {
       window.BASE_API = window.BASE_API.replace(/\/?$/, '') + '/api';
@@ -6366,9 +6365,9 @@ function getCurrentScreen() {
       window.BASE_API = 'https://quiz-system-api.onrender.com/api';
     }
     log('BASE_API =', window.BASE_API);
-  }catch(e){ warn('BASE_API normalize failed', e); }
+  }catch(e){}
 
-  // ---------- tolerant storage ----------
+  // ===== Storage tolerant (JWT نصّي) =====
   try{
     if (window.StorageManager && typeof window.StorageManager.getItem === 'function') {
       const orig = window.StorageManager.getItem.bind(window.StorageManager);
@@ -6380,270 +6379,157 @@ function getCurrentScreen() {
             if (!raw) return null;
             try { const parsed = JSON.parse(raw); return (parsed && parsed.v !== undefined) ? parsed.v : parsed; }
             catch { return raw; }
-          }catch(e2){ err('Storage fallback failed', e2); return null; }
+          }catch{ return null; }
         }
       };
-      log('Storage.getItem patched');
     }
   }catch(e){}
 
-  // ---------- fallbacks ----------
+  // ===== Fallbacks لمنع أخطاء إضافات =====
   window.getFingerPrintSwitch = window.getFingerPrintSwitch || function(){ return false; };
   window.all_funcdisable     = (typeof window.all_funcdisable === 'function') ? window.all_funcdisable : function(){};
 
-  // ---------- auth headers (no cookies) ----------
-  function authHeaders(){
-    try{
-      const raw = localStorage.getItem('authToken');
-      let token = null;
-      if (raw){ try{ const p=JSON.parse(raw); token = p?.v ?? p; } catch { token = raw; } }
-      if (typeof token === 'string' && token.trim()) return { Authorization: 'Bearer '+token.trim() };
-    }catch{}
-    return {};
+  // ===== تعرّف "شكل الاختبار" في الرد =====
+  function looksLikeTestsArray(data){
+    if (!Array.isArray(data)) return false;
+    if (!data.length) return true; // قائمة فارغة لكنها صحيحة
+    const t = data[0];
+    return t && typeof t === 'object' && ('id' in t) && ('title' in t || 'name' in t);
   }
 
-  async function httpGet(path){
-    const res = await fetch(String(window.BASE_API||'') + path, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
-    });
-    const text = await res.text();
-    if (!res.ok) throw new Error('HTTP '+res.status+' '+res.statusText+' — '+text);
-    try { return JSON.parse(text); } catch { return text; }
-  }
-
-  // ---------- school discovery ----------
-  async function discoverSchools(q){
-    try{
-      if (q) return await httpGet('/schools?q=' + encodeURIComponent(q));
-      // جرّب بدائل شائعة إن لم يوجد q
-      try { return await httpGet('/schools'); } catch(_){}
-      try { return await httpGet('/schools/list'); } catch(_){}
-    }catch(e){ err('discoverSchools', e); }
-    return [];
-  }
-
-  function guessSchoolFromDOM(){
-    const elId = $('#chosenSchoolId') || $('[data-school-id]') || $('#schoolSelect');
-    if (elId?.value) return { id: elId.value };
-    if (elId?.dataset?.schoolId) return { id: elId.dataset.schoolId };
-    const txt = $('#chosenSchoolName');
-    if (txt && txt.textContent.trim()) return { name: txt.textContent.trim() };
-    return null;
-  }
-
-  function guessSchoolFromStorage(){
-    try{
-      const a = localStorage.getItem('currentSchool') || localStorage.getItem('selectedSchool');
-      if (a){ const x = JSON.parse(a); if (x?.id || x?.name) return x; }
-    }catch{}
-    try{
-      const demo = localStorage.getItem('demoSchoolsData');
-      if (demo){ const arr = JSON.parse(demo); if (Array.isArray(arr) && arr[0]) return { id: arr[0].id, name: arr[0].name }; }
-    }catch{}
-    return null;
-  }
-
-  async function resolveCurrentSchool(){
-    // 1) من DOM أو التخزين
-    let cand = guessSchoolFromDOM() || guessSchoolFromStorage();
-    // 2) لو عندنا name وليس id، نسحب من API ونطابق الاسم
-    if (cand?.name && !cand.id){
-      const list = await discoverSchools(cand.name.slice(0,2));
-      const found = Array.isArray(list) ? list.find(s => (s.name||'').trim() === cand.name.trim()) : null;
-      if (found) cand = { id: found.id, name: found.name };
-    }
-    // 3) لو لا نزال بلا id، خذ أول مدرسة من API
-    if (!cand?.id){
-      const list = await discoverSchools('مد'); // أي بادئة شائعة بالعربية
-      if (Array.isArray(list) && list[0]) cand = { id: list[0].id, name: list[0].name };
-    }
-    if (!cand?.id) throw new Error('تعذر تحديد هوية المدرسة الحالية');
-    // خزّن للاستخدام القادم
-    localStorage.setItem('currentSchool', JSON.stringify({ id: cand.id, name: cand.name || '' }));
-    return cand;
-  }
-
-  // ---------- tests resolver ----------
-  async function fetchTestsForSchool(sid){
-    const base = String(window.BASE_API||'');
-    const headers = Object.assign({ 'Content-Type':'application/json' }, authHeaders());
-
-    const tryPaths = [
-      `/schools/${sid}/tests`,
-      `/tests?schoolId=${encodeURIComponent(sid)}`,
-      `/tests/by-school/${encodeURIComponent(sid)}`,
-      `/tests?school=${encodeURIComponent(sid)}`,
-      `/tests` // كحل أخير سنفلتره
-    ];
-
-    for (const p of tryPaths){
-      try{
-        const res = await fetch(base + p, { method:'GET', mode:'cors', credentials:'omit', headers });
-        const text = await res.text();
-        if (!res.ok) throw new Error('HTTP '+res.status+' '+res.statusText+' — '+text);
-        let data; try{ data = JSON.parse(text); }catch{ data = text; }
-        if (Array.isArray(data)) {
-          // لو جلبنا كل الاختبارات ("/tests") فلتر حسب schoolId أو school
-          if (/\/tests$/.test(p)){
-            const filtered = data.filter(t => String(t.schoolId||t.school||'') === String(sid));
-            if (filtered.length || !data.length) return filtered;
-          } else {
-            return data;
-          }
-        }
-      }catch(_){ /* متوقع — جرّب التالي */ }
-    }
-    throw new Error('لا يوجد مسار اختبارات معروف يقبل المعرف: ' + sid);
-  }
-
-  // ---------- UI render ----------
-  function allStudentTestSelects(){
-    const set = new Set([ $('#testSelect'), $('#studentTestSelect') ].filter(Boolean));
+  // ===== تحديث كل قوائم الطالب و/أو قائمة UL =====
+  function renderStudentTests(tests){
+    // 1) كل select له علاقة بـ test
+    const selects = new Set([ $('#testSelect'), $('#studentTestSelect') ].filter(Boolean));
     $$('select').forEach(s=>{
       const idn = (s.id||'') + ' ' + (s.name||'');
-      if (/test/i.test(idn) && /select|choose|اختبار|اختر/i.test(idn)) set.add(s);
+      if (/test/i.test(idn) && /select|choose|اختبار|اختر/i.test(idn)) selects.add(s);
     });
-    return Array.from(set);
-  }
 
-  function renderTests(tests){
-    const selects = allStudentTestSelects();
-    const prevMap = new Map();
-    selects.forEach(sel => prevMap.set(sel, sel.value));
+    const prev = new Map();
+    selects.forEach(sel => prev.set(sel, sel.value));
+
     selects.forEach(sel=>{
       sel.innerHTML = '<option value="">اختر الاختبار</option>';
       (tests||[]).forEach(t=>{
         const o=document.createElement('option');
-        o.value=t.id;
-        o.textContent=t.title||t.name||('اختبار '+t.id);
+        o.value = t.id;
+        o.textContent = t.title || t.name || ('اختبار ' + t.id);
         sel.appendChild(o);
       });
-      const prev = prevMap.get(sel);
-      if (prev && tests.some(t=>String(t.id)===String(prev))) sel.value = prev;
-      if (!sel._v6bound){ sel.addEventListener('change', ()=> window.selectTest(sel.value)); sel._v6bound=true; }
+      const pv = prev.get(sel);
+      if (pv && tests.some(t=>String(t.id)===String(pv))) sel.value = pv;
+      if (!sel._v7bound){
+        sel.addEventListener('change', ()=> window.selectTest && window.selectTest(sel.value));
+        sel._v7bound = true;
+      }
     });
+
+    // 2) قائمة UL بديلة إن وجدت
     const list = $('#testList') || $('[data-test-list]');
     if (list){
       list.innerHTML = '';
       (tests||[]).forEach(t=>{
         const li=document.createElement('li');
         li.className='cursor-pointer hover:bg-gray-50 px-3 py-2';
-        li.textContent=t.title||t.name||('اختبار '+t.id);
-        li.onclick=()=> window.selectTest(t.id);
+        li.textContent = t.title || t.name || ('اختبار ' + t.id);
+        li.onclick = ()=> window.selectTest && window.selectTest(t.id);
         list.appendChild(li);
       });
     }
+
+    // خزن آخر قائمة اختبارات لاستخدام selectTest
+    window.__v7_lastTests = tests || [];
+    log('Student test lists rendered:', (tests||[]).length);
   }
 
-  // ---------- global cache ----------
-  const cache = { school:null, testsBySchool:new Map() };
-
-  async function refreshTests({force=false}={}){
-    if (!cache.school) cache.school = await resolveCurrentSchool();
-    const sid = String(cache.school.id);
-    let tests = cache.testsBySchool.get(sid) || [];
-    if (force || !tests.length){
-      tests = await fetchTestsForSchool(sid);
-      cache.testsBySchool.set(sid, tests);
-    }
-    renderTests(tests);
-    log('tests rendered:', tests.length, 'for school', sid);
-  }
-  window.refreshTestsForCurrentSchool = refreshTests; // expose
-
-  // ---------- wire selectSchool / selectTest ----------
+  // ===== selectTest آمنة وتُظهر نموذج الطالب =====
   (function(){
-    const origSelectSchool = window.selectSchool;
-    window.selectSchool = async function(school){
+    const origSelectTest = window.selectTest;
+    window.selectTest = function(testId){
       try{
-        if (school?.id) cache.school = { id: school.id, name: school.name||'' };
-        await refreshTests({force:true});
-        if (typeof origSelectSchool === 'function') try { origSelectSchool(school); } catch(_){}
-      }catch(e){ err('selectSchool', e); }
+        const tests = window.__v7_lastTests || [];
+        const test  = tests.find(t=>String(t.id)===String(testId)) || tests[0];
+        if (!test) throw new Error('لا توجد اختبارات محمّلة بعد');
+        window.__selectedTest = test;
+
+        const studentForm = document.getElementById('studentForm') || document.getElementById('studentFormArea');
+        if (studentForm) { studentForm.classList.remove('hidden'); studentForm.style.display=''; }
+        const studentSection = document.getElementById('studentSection') || document.getElementById('studentAccessScreen');
+        if (studentSection) { studentSection.classList.remove('hidden'); }
+
+        log('selectTest OK:', test.id || test.name);
+        if (typeof origSelectTest === 'function') { try { origSelectTest(testId); } catch(_){} }
+        return test;
+      }catch(e){
+        console.error('[HOTFIX v7] selectTest', e);
+        alert('تعذر اختيار الاختبار. تأكد من تحميل الاختبارات أولًا.');
+      }
     };
   })();
 
-  window.selectTest = async function(testId){
-    try{
-      if (!cache.school) await refreshTests({force:true});
-      const sid = String(cache.school.id);
-      const tests = cache.testsBySchool.get(sid) || [];
-      const test = tests.find(t=>String(t.id)===String(testId)) || tests[0];
-      if (!test) throw new Error('لا توجد اختبارات لهذه المدرسة بعد');
-      window.__selectedTest = test;
-      // أظهر نموذج الطالب
-      const f = $('#studentForm') || $('#studentFormArea');
-      if (f){ f.classList.remove('hidden'); f.style.display=''; }
-      const s = $('#studentSection') || $('#studentAccessScreen');
-      if (s){ s.classList.remove('hidden'); }
-      log('selectTest OK:', test.id || test.name);
-      return test;
-    }catch(e){
-      err('selectTest', e);
-      alert('تعذر اختيار الاختبار. تأكد من تحديد المدرسة ثم أعد المحاولة.');
-    }
-  };
-
-  // ---------- fetch wrapper: refresh after changes ----------
+  // ===== نلفّ fetch: نقرأ الرد ونحدث القوائم عندما يُعيد كودك الاختبارات =====
   (function(){
-    const of = window.fetch;
+    const origFetch = window.fetch;
     window.fetch = async function(input, init={}){
-      const url = (typeof input === 'string' ? input : input?.url) || '';
-      const method = (init.method || 'GET').toUpperCase();
+      // لا نرسل Cookies لتفادي CORS عند الحاجة
       const patched = Object.assign({}, init, {
-        mode:'cors',
-        credentials:'omit',
-        headers: Object.assign({'Content-Type':'application/json'}, init.headers||{}, authHeaders())
+        mode: 'cors',
+        credentials: 'omit',
+        headers: Object.assign({'Content-Type':'application/json'}, init.headers || {})
       });
-      const res = await of(input, patched);
+
+      const res = await origFetch(input, patched);
+
+      // نحاول قراءة نسخة من الرد بدون تعطيل الاستهلاك
       try{
-        if (/(POST|PUT|DELETE)/.test(method) && /\/tests(\/|$|\?)/.test(url)) {
-          await refreshTests({force:true});
-          await sleep(1000);
-          await refreshTests({force:true});
-        }
-        if (/(POST|PUT|DELETE)/.test(method) && /\/questions(\/|$|\?)/.test(url)) {
-          if (window.__selectedTest?.id){
-            const d = await httpGet(`/tests/${window.__selectedTest.id}`);
-            const count = d?.questions?.length ?? d?.questionsCount ?? d?.totalQuestions ?? 0;
-            const els = [ $('#testQuestions'), $('[data-test-questions]') ].filter(Boolean);
-            els.forEach(el=> el.textContent = count);
-            log('questions count refreshed →', count);
-          } else {
-            await refreshTests({force:true});
+        const clone = res.clone();
+        const text  = await clone.text();
+        try{
+          const json = JSON.parse(text);
+          if (looksLikeTestsArray(json)) {
+            renderStudentTests(json);
           }
+        }catch(_){}
+      }catch(_){}
+
+      // بعد POST/PUT/DELETE على /tests أو /questions: دع كودك يعيد التحميل ثم نلتقط الرد القادم
+      try{
+        const url    = (typeof input === 'string' ? input : input?.url) || '';
+        const method = (init.method || 'GET').toUpperCase();
+        if (/(POST|PUT|DELETE)/.test(method) && /(\/tests|\/questions)(\/|$|\?)/.test(url)) {
+          // بعض الـ APIs تحتاج لحظات قبل أن يظهر العنصر الجديد في GET—ننتظر ونترك كودك يجلب من جديد
+          await sleep(600);
         }
-      }catch(e){ warn('post-op refresh', e); }
+      }catch(_){}
+
       return res;
     };
   })();
 
-  // ---------- auto refresh on student screen / focus ----------
+  // ===== تحديث تلقائي عند فتح شاشة الطالب أو تركيز على الـ select =====
   (function(){
     const origShowStudentAccess = window.showStudentAccess;
-    window.showStudentAccess = async function(){
-      try{ if (typeof origShowStudentAccess === 'function') origShowStudentAccess(); }catch(_){}
-      await refreshTests({force:true});
+    window.showStudentAccess = function(){
+      try { if (typeof origShowStudentAccess === 'function') origShowStudentAccess(); } catch(_){}
+      // لا نعمل أي جلب هنا؛ سنعتمد على أن كودك سيجلب الاختبارات عند فتح الشاشة وسنلتقطها عبر fetch wrapper
+      // لكن لو عندك زر أو حدث يطلق جلبًا يدويًا، يمكنك استدعاؤه هنا أيضًا.
     };
     document.addEventListener('focusin', (e)=>{
       const el = e.target;
       if (el && el.tagName === 'SELECT'){
         const idn = (el.id||'') + ' ' + (el.name||'');
         if (/test/i.test(idn) && /select|choose|اختبار|اختر/i.test(idn)){
-          refreshTests({force:true});
+          // لا نجلب نحن؛ فقط نسمح لكودك بالعمل. اللفّ على fetch سيلتقط النتائج ويحدث القوائم.
         }
       }
     });
   })();
 
-  // ---------- first run ----------
-  window.addEventListener('DOMContentLoaded', ()=>{ setTimeout(()=>refreshTests({force:false}), 500); });
   log('loaded.');
 })();
 </script>
+
 
 
 
