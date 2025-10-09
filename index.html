@@ -13,7 +13,8 @@
     
     <!-- إضافة مكتبة html2canvas لتحويل HTML إلى صورة -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
+    <link rel="icon" href="data:,">
+
     <style>
         body {
             box-sizing: border-box;
@@ -6531,6 +6532,34 @@ function getCurrentScreen() {
   log('loaded.');
 })();
 </script>
+<script>
+/* HOTFIX authToken — تطبيع authToken وإيقاف أخطاء JSON.parse المتكررة */
+(function(){
+  try{
+    const KEY = 'authToken';
+    const raw = localStorage.getItem(KEY);
+
+    // 1) لو التوكِن نص خام (ليس JSON)، لُفّه في JSON مرة واحدة
+    if (raw && !/^\s*\{/.test(raw)) {
+      localStorage.setItem(KEY, JSON.stringify({ v: raw }));
+      console.info('[HOTFIX authToken] normalized stored value.');
+    }
+
+    // 2) نلفّ localStorage.getItem لضمان إعادة JSON صالح دائمًا لهذا المفتاح
+    const _origGet = localStorage.getItem.bind(localStorage);
+    localStorage.getItem = function(k){
+      const val = _origGet(k);
+      if (k === KEY && val && !/^\s*\{/.test(val)) {
+        return JSON.stringify({ v: val });
+      }
+      return val;
+    };
+  } catch(e){
+    console.warn('[HOTFIX authToken] failed:', e);
+  }
+})();
+</script>
+	
 
 
 
