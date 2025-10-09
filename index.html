@@ -6342,23 +6342,22 @@ function getCurrentScreen() {
             </p>
         </div>
     </footer>
-	<script src="quiz-hotfix.js">
-	</script>
 	<script>
-/* === INLINE HOTFIX (no file needed) === */
+/* === HOTFIX v2 (final) — selectTest + counts refresh + safe storage/fallbacks === */
 (function(){
-  // 1) BASE_API → تأكد ينتهي بـ /api
+  // --- BASE_API: تأكد من /api
   try{
     if (typeof window.BASE_API === 'string' && !/\/api$/.test(window.BASE_API)) {
       window.BASE_API = window.BASE_API.replace(/\/?$/, '') + '/api';
-      console.info('[HOTFIX] BASE_API:', window.BASE_API);
     } else if ((!window.BASE_API) && window.CONFIG && window.CONFIG.BASE_API) {
       window.BASE_API = String(window.CONFIG.BASE_API);
-      console.info('[HOTFIX] BASE_API from CONFIG:', window.BASE_API);
+    } else if (!window.BASE_API) {
+      window.BASE_API = 'https://quiz-system-api.onrender.com/api';
     }
-  }catch(e){ console.warn('[HOTFIX] BASE_API normalize failed', e); }
+    console.info('[HOTFIX v2] BASE_API =', window.BASE_API);
+  }catch(e){ console.warn('[HOTFIX v2] BASE_API normalize failed', e); }
 
-  // 2) StorageManager.getItem يتحمل القيم غير JSON (مثل JWT نصّي)
+  // --- Storage.getItem: يتحمل القيم غير JSON (JWT نصّي)
   try{
     if (window.StorageManager && typeof window.StorageManager.getItem === 'function') {
       const orig = window.StorageManager.getItem.bind(window.StorageManager);
@@ -6370,42 +6369,51 @@ function getCurrentScreen() {
             if (!raw) return null;
             try { const parsed = JSON.parse(raw); return (parsed && parsed.v !== undefined) ? parsed.v : parsed; }
             catch { return raw; }
-          }catch(e2){ console.error('[HOTFIX] Storage fallback failed', e2); return null; }
+          }catch(e2){ console.error('[HOTFIX v2] Storage fallback failed', e2); return null; }
         }
       };
-      console.info('[HOTFIX] Storage.getItem patched');
+      console.info('[HOTFIX v2] Storage.getItem patched');
     }
-  }catch(e){ console.warn('[HOTFIX] Storage patch failed', e); }
+  }catch(e){ console.warn('[HOTFIX v2] Storage patch failed', e); }
 
-  // 3) حمايات لدوال قد تكون غير معرّفة
+  // --- دوال غير معرّفة
   window.getFingerPrintSwitch = window.getFingerPrintSwitch || function(){ return false; };
-  window.all_funcdisable = typeof window.all_funcdisable === 'function' ? window.all_funcdisable : function(){ console.info('[HOTFIX] all_funcdisable noop'); };
+  window.all_funcdisable = (typeof window.all_funcdisable === 'function') ? window.all_funcdisable : function(){ /* no-op */ };
 
-  // 4) selectSchool/selectTest آمنان مع كاش داخلي للاختبارات
+  // --- كاش المدارس/الاختبارات + دوال آمنة
+  let __currentSchool = null;
+  const __testsBySchool = new Map();
+
+  async function apiGet(path){
+    // استخدم ApiClient إن وجد وإلا fetch
+    if (window.ApiClient && typeof window.ApiClient.get === 'function') return window.ApiClient.get(path);
+    const res = await fetch(String(window.BASE_API || '' ) + path, { credentials:'include' });
+    const text = await res.text();
+    try{ return JSON.parse(text); }catch{ return text; }
+  }
+
+  async function ensureSchoolTests(school){
+    if (!school || !school.id) throw new Error('مدرسة غير معرّفة');
+    const sid = String(school.id);
+    if (!__testsBySchool.has(sid) || !Array.isArray(__testsBySchool.get(sid)) || __testsBySchool.get(sid).length === 0){
+      const tests = await apiGet(`/schools/${sid}/tests`);
+      __testsBySchool.set(sid, Array.isArray(tests) ? tests : []);
+    }
+    return __testsBySchool.get(sid);
+  }
+
+  // hook لـ selectSchool (نحافظ على دوالك لكن نعبّي الكاش ونحدّث القائمة)
   (function(){
-    let __currentSchool = null;
-    const __testsBySchool = new Map();
-
-    const fetchTests = async (sid)=>{
-      if (window.ApiClient && typeof window.ApiClient.get === 'function') {
-        return await window.ApiClient.get(`/schools/${sid}/tests`);
-      }
-      const base = (typeof window.BASE_API === 'string' ? window.BASE_API : (window.CONFIG && window.CONFIG.BASE_API)) || '';
-      const res = await fetch(`${base}/schools/${sid}/tests`, { credentials:'include' });
-      return await res.json();
-    };
-
     const origSelectSchool = window.selectSchool;
     window.selectSchool = async function(school){
       __currentSchool = school || __currentSchool;
       try{
         if (!school) { if (typeof origSelectSchool === 'function') return origSelectSchool(school); return; }
-        const tests = await fetchTests(school.id);
-        __testsBySchool.set(String(school.id), Array.isArray(tests) ? tests : []);
+        const tests = await ensureSchoolTests(school);
         const sel = document.getElementById('testSelect');
         if (sel) {
           sel.innerHTML = '<option value="">اختر الاختبار</option>';
-          (tests || []).forEach(t=>{
+          (tests||[]).forEach(t=>{
             const o = document.createElement('option');
             o.value = t.id;
             o.textContent = t.title || t.name || ('اختبار ' + t.id);
@@ -6413,28 +6421,69 @@ function getCurrentScreen() {
           });
           sel.onchange = ()=> window.selectTest(sel.value);
         }
-        if (typeof origSelectSchool === 'function') try { origSelectSchool(school); } catch(_){}
-      }catch(e){ console.error('[HOTFIX] selectSchool failed', e); }
-    };
-
-    const origSelectTest = window.selectTest;
-    window.selectTest = function(testOrId){
-      try{
-        const schoolId = __currentSchool && __currentSchool.id ? String(__currentSchool.id) : null;
-        const tests = schoolId ? (__testsBySchool.get(schoolId) || []) : [];
-        let test = (typeof testOrId === 'object' && testOrId) ? testOrId : tests.find(t => String(t.id) === String(testOrId));
-        if (!test && typeof origSelectTest === 'function') { try { return origSelectTest(testOrId); } catch(_){} }
-        if (!test) throw new Error('لم يتم العثور على الاختبار');
-        window.__selectedTest = test;
-        console.info('[HOTFIX] selectTest OK:', test.id || test.name);
-        return test;
-      }catch(e){ console.error('[HOTFIX] selectTest failed', e); }
+        if (typeof origSelectSchool === 'function') { try { origSelectSchool(school); } catch(_){} }
+      }catch(e){ console.error('[HOTFIX v2] selectSchool failed', e); }
     };
   })();
 
-  console.info('[HOTFIX] Inline patch loaded.');
+  // selectTest: لا تُستدعى الدالة الأصلية نهائيًا
+  window.selectTest = async function(testOrId){
+    try{
+      if (!__currentSchool || !__currentSchool.id) throw new Error('اختر مدرسة أولاً');
+      const tests = await ensureSchoolTests(__currentSchool);
+      let test = (typeof testOrId === 'object' && testOrId) ? testOrId : tests.find(t => String(t.id) === String(testOrId));
+      if (!test) {
+        // محاولة أخيرة: لو ما انبنَى الكاش بعد، اجلب ثم ابحث
+        const fresh = await apiGet(`/schools/${String(__currentSchool.id)}/tests`);
+        const list = Array.isArray(fresh) ? fresh : [];
+        __testsBySchool.set(String(__currentSchool.id), list);
+        test = list.find(t => String(t.id) === String(testOrId));
+      }
+      if (!test) throw new Error('لم يتم العثور على الاختبار');
+
+      // خزّنه للعالمية القديمة + أظهر فورم الطالب
+      window.__selectedTest = test;
+      const studentForm = document.getElementById('studentForm') || document.getElementById('studentFormArea');
+      if (studentForm) { studentForm.classList.remove('hidden'); studentForm.style.display = ''; }
+      const studentSection = document.getElementById('studentSection') || document.getElementById('studentAccessScreen');
+      if (studentSection) { studentSection.classList.remove('hidden'); }
+      console.info('[HOTFIX v2] selectTest OK:', test.id || test.name);
+      return test;
+    }catch(e){
+      console.error('[HOTFIX v2] selectTest failed', e);
+      alert('تعذر اختيار الاختبار. يرجى إعادة المحاولة بعد اختيار المدرسة مرة أخرى.');
+    }
+  };
+
+  // --- تحديث عداد الأسئلة مباشرة بعد الإضافة/التعديل/الحذف
+  // نلفّ fetch ونراقب استدعاءات /questions بـ POST/PUT/DELETE
+  (function(){
+    const origFetch = window.fetch;
+    window.fetch = async function(input, init={}){
+      const method = (init && init.method ? init.method : 'GET').toUpperCase();
+      const url = (typeof input === 'string' ? input : (input && input.url ? input.url : '')) || '';
+      const res = await origFetch(input, init);
+      try{
+        if (/(POST|PUT|DELETE)/.test(method) && /\/questions(\/|$|\?)/.test(url)) {
+          // بعد نجاح العملية على الأسئلة، أعِد جلب تفاصيل الاختبار لتحديث العداد في الواجهة
+          if (window.__selectedTest && window.__selectedTest.id) {
+            const details = await apiGet(`/tests/${window.__selectedTest.id}`);
+            const count = (details && details.questions) ? details.questions.length : (details?.questionsCount || details?.totalQuestions);
+            // حدّث أي عنصر عداد يظهر في واجهتك
+            const elQ1 = document.getElementById('testQuestions');
+            const elQ2 = document.querySelector('[data-test-questions]');
+            if (elQ1) elQ1.textContent = count || '0';
+            if (elQ2) elQ2.textContent = count || '0';
+            console.info('[HOTFIX v2] questions count refreshed →', count);
+          }
+        }
+      } catch(e){ console.warn('[HOTFIX v2] refresh count failed', e); }
+      return res;
+    };
+  })();
+
+  console.info('[HOTFIX v2] inline patch loaded.');
 })();
 </script>
-
 </body>
 </html>
