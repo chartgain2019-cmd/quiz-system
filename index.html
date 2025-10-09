@@ -6344,7 +6344,7 @@ function getCurrentScreen() {
     </footer>
 <script>
 /* =========================================================================
-   HOTFIX v7 — لا نخمن مسارات API؛ نقرأ الردود الناجحة لكودك ونحدّث قوائم الطالب
+   HOTFIX v7.1 — lock-safe selectTest (لا ننادي الدالة الأصلية) + التقاط الاختبارات
    ضع هذا الكود بعد جميع السكربتات وقبل </body>. لا تضف أي ترقيع آخر معه.
    ========================================================================= */
 (function(){
@@ -6352,10 +6352,10 @@ function getCurrentScreen() {
   const $  = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
-  const log  = (...a)=>console.info('[HOTFIX v7]', ...a);
-  const warn = (...a)=>console.warn('[HOTFIX v7]', ...a);
+  const log  = (...a)=>console.info('[HOTFIX v7.1]', ...a);
+  const warn = (...a)=>console.warn('[HOTFIX v7.1]', ...a);
 
-  // ===== BASE_API (غير حاسم هنا، لكن نبقيه منضبط) =====
+  // ===== BASE_API (غير حاسم هنا) =====
   try{
     if (typeof window.BASE_API === 'string' && !/\/api$/.test(window.BASE_API)) {
       window.BASE_API = window.BASE_API.replace(/\/?$/, '') + '/api';
@@ -6389,17 +6389,20 @@ function getCurrentScreen() {
   window.getFingerPrintSwitch = window.getFingerPrintSwitch || function(){ return false; };
   window.all_funcdisable     = (typeof window.all_funcdisable === 'function') ? window.all_funcdisable : function(){};
 
-  // ===== تعرّف "شكل الاختبار" في الرد =====
+  // ===== شكل الاختبارات =====
   function looksLikeTestsArray(data){
     if (!Array.isArray(data)) return false;
-    if (!data.length) return true; // قائمة فارغة لكنها صحيحة
+    if (!data.length) return true;
     const t = data[0];
-    return t && typeof t === 'object' && ('id' in t) && ('title' in t || 'name' in t);
+    // ندعم مفاتيح محتملة: id || _id  +  title || name
+    return t && typeof t === 'object' && (('id' in t) || ('_id' in t)) && (('title' in t) || ('name' in t));
   }
 
-  // ===== تحديث كل قوائم الطالب و/أو قائمة UL =====
+  function getTestId(t){ return (t && (t.id ?? t._id)); }
+  function getTestTitle(t){ return (t && (t.title || t.name || ('اختبار ' + getTestId(t)))); }
+
+  // ===== تحديث قوائم الطالب =====
   function renderStudentTests(tests){
-    // 1) كل select له علاقة بـ test
     const selects = new Set([ $('#testSelect'), $('#studentTestSelect') ].filter(Boolean));
     $$('select').forEach(s=>{
       const idn = (s.id||'') + ' ' + (s.name||'');
@@ -6413,66 +6416,76 @@ function getCurrentScreen() {
       sel.innerHTML = '<option value="">اختر الاختبار</option>';
       (tests||[]).forEach(t=>{
         const o=document.createElement('option');
-        o.value = t.id;
-        o.textContent = t.title || t.name || ('اختبار ' + t.id);
+        o.value = String(getTestId(t));
+        o.textContent = getTestTitle(t);
         sel.appendChild(o);
       });
       const pv = prev.get(sel);
-      if (pv && tests.some(t=>String(t.id)===String(pv))) sel.value = pv;
-      if (!sel._v7bound){
-        sel.addEventListener('change', ()=> window.selectTest && window.selectTest(sel.value));
-        sel._v7bound = true;
+      if (pv && (tests||[]).some(t=>String(getTestId(t))===String(pv))) sel.value = pv;
+      if (!sel._v71bound){
+        sel.addEventListener('change', ()=> window.selectTest && window.selectTest(sel.value), { passive:true });
+        sel._v71bound = true;
       }
     });
 
-    // 2) قائمة UL بديلة إن وجدت
     const list = $('#testList') || $('[data-test-list]');
     if (list){
       list.innerHTML = '';
       (tests||[]).forEach(t=>{
         const li=document.createElement('li');
         li.className='cursor-pointer hover:bg-gray-50 px-3 py-2';
-        li.textContent = t.title || t.name || ('اختبار ' + t.id);
-        li.onclick = ()=> window.selectTest && window.selectTest(t.id);
+        li.textContent = getTestTitle(t);
+        li.onclick = ()=> window.selectTest && window.selectTest(String(getTestId(t)));
         list.appendChild(li);
       });
     }
 
-    // خزن آخر قائمة اختبارات لاستخدام selectTest
-    window.__v7_lastTests = tests || [];
+    window.__v71_lastTests = tests || [];
     log('Student test lists rendered:', (tests||[]).length);
   }
 
-  // ===== selectTest آمنة وتُظهر نموذج الطالب =====
+  // ===== دالة selectTest آمنة — لا تستدعي الأصلية نهائيًا =====
   (function(){
-    const origSelectTest = window.selectTest;
+    // نحتفظ بنسخة من الأصلية فقط لو أردنا تعطيلها:
+    const originalSelectTest = window.selectTest;
+    // نُسقِط الدالة الأصلية حتى لو حاول كود آخر النداء عليها لاحقًا عبر مرجع قديم
+    window.__originalSelectTest = undefined;
+
     window.selectTest = function(testId){
       try{
-        const tests = window.__v7_lastTests || [];
-        const test  = tests.find(t=>String(t.id)===String(testId)) || tests[0];
+        const tests = window.__v71_lastTests || [];
+        const test  = tests.find(t=>String(getTestId(t))===String(testId)) || tests[0];
         if (!test) throw new Error('لا توجد اختبارات محمّلة بعد');
+
         window.__selectedTest = test;
 
+        // أظهر نموذج/قسم الطالب
         const studentForm = document.getElementById('studentForm') || document.getElementById('studentFormArea');
         if (studentForm) { studentForm.classList.remove('hidden'); studentForm.style.display=''; }
         const studentSection = document.getElementById('studentSection') || document.getElementById('studentAccessScreen');
         if (studentSection) { studentSection.classList.remove('hidden'); }
 
-        log('selectTest OK:', test.id || test.name);
-        if (typeof origSelectTest === 'function') { try { origSelectTest(testId); } catch(_){} }
+        // لا ننادي الدالة الأصلية إطلاقًا — لمنع الخطأ school.tests
+        log('selectTest OK (locked):', getTestId(test));
         return test;
       }catch(e){
-        console.error('[HOTFIX v7] selectTest', e);
+        console.error('[HOTFIX v7.1] selectTest', e);
         alert('تعذر اختيار الاختبار. تأكد من تحميل الاختبارات أولًا.');
       }
     };
+
+    // حارس: لو أي جزء من الكود حاول إعادة ربط selectTest بالأصلية، نمنعه
+    Object.defineProperty(window, 'selectTest', {
+      configurable: false,
+      writable: false,
+      value: window.selectTest
+    });
   })();
 
-  // ===== نلفّ fetch: نقرأ الرد ونحدث القوائم عندما يُعيد كودك الاختبارات =====
+  // ===== نلفّ fetch: نلتقط أي رد يعيد اختبارات ونحدّث القوائم =====
   (function(){
     const origFetch = window.fetch;
     window.fetch = async function(input, init={}){
-      // لا نرسل Cookies لتفادي CORS عند الحاجة
       const patched = Object.assign({}, init, {
         mode: 'cors',
         credentials: 'omit',
@@ -6481,7 +6494,7 @@ function getCurrentScreen() {
 
       const res = await origFetch(input, patched);
 
-      // نحاول قراءة نسخة من الرد بدون تعطيل الاستهلاك
+      // نحاول قراءة الرد
       try{
         const clone = res.clone();
         const text  = await clone.text();
@@ -6493,12 +6506,11 @@ function getCurrentScreen() {
         }catch(_){}
       }catch(_){}
 
-      // بعد POST/PUT/DELETE على /tests أو /questions: دع كودك يعيد التحميل ثم نلتقط الرد القادم
+      // بعد تعديل /tests أو /questions — فقط ننتظر ليُعيد كودك الجلب التالي وسنلتقطه
       try{
         const url    = (typeof input === 'string' ? input : input?.url) || '';
         const method = (init.method || 'GET').toUpperCase();
         if (/(POST|PUT|DELETE)/.test(method) && /(\/tests|\/questions)(\/|$|\?)/.test(url)) {
-          // بعض الـ APIs تحتاج لحظات قبل أن يظهر العنصر الجديد في GET—ننتظر ونترك كودك يجلب من جديد
           await sleep(600);
         }
       }catch(_){}
@@ -6507,28 +6519,19 @@ function getCurrentScreen() {
     };
   })();
 
-  // ===== تحديث تلقائي عند فتح شاشة الطالب أو تركيز على الـ select =====
+  // ===== تحديث تلقائي عند فتح شاشة الطالب =====
   (function(){
     const origShowStudentAccess = window.showStudentAccess;
     window.showStudentAccess = function(){
       try { if (typeof origShowStudentAccess === 'function') origShowStudentAccess(); } catch(_){}
-      // لا نعمل أي جلب هنا؛ سنعتمد على أن كودك سيجلب الاختبارات عند فتح الشاشة وسنلتقطها عبر fetch wrapper
-      // لكن لو عندك زر أو حدث يطلق جلبًا يدويًا، يمكنك استدعاؤه هنا أيضًا.
+      // لا نجلب نحن؛ ننتظر جلب كودك ونلتقطه عبر fetch wrapper
     };
-    document.addEventListener('focusin', (e)=>{
-      const el = e.target;
-      if (el && el.tagName === 'SELECT'){
-        const idn = (el.id||'') + ' ' + (el.name||'');
-        if (/test/i.test(idn) && /select|choose|اختبار|اختر/i.test(idn)){
-          // لا نجلب نحن؛ فقط نسمح لكودك بالعمل. اللفّ على fetch سيلتقط النتائج ويحدث القوائم.
-        }
-      }
-    });
   })();
 
   log('loaded.');
 })();
 </script>
+
 
 
 
