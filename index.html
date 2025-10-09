@@ -6640,6 +6640,126 @@ function getCurrentScreen() {
   console.info('[HOTFIX v5] loaded.');
 })();
 </script>
+<script>
+/* === HOTFIX v5+ add-on — smart tests endpoint resolver ===
+   ضع هذا الكود بعد الترقيع v5 مباشرة (لا تحذف v5).
+*/
+(function(){
+  // يحاول مسارات متعددة لجلب اختبارات المدرسة
+  async function fetchTestsForSchool(sid){
+    const base = String(window.BASE_API||'');
+    const headers = { 'Content-Type':'application/json' };
+    // لو عندك JWT محفوظ
+    try {
+      const raw = localStorage.getItem('authToken');
+      let token = null;
+      if (raw) { try{ const p=JSON.parse(raw); token = p?.v ?? p; }catch{ token = raw; } }
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+    } catch {}
+
+    const tryPaths = [
+      `/schools/${sid}/tests`,            // المسار المتوقع
+      `/tests?schoolId=${encodeURIComponent(sid)}`,
+      `/tests?school=${encodeURIComponent(sid)}`,
+      `/tests/by-school/${encodeURIComponent(sid)}`
+    ];
+
+    for (const p of tryPaths){
+      try{
+        const res = await fetch(base + p, { method:'GET', mode:'cors', credentials:'omit', headers });
+        if (!res.ok) { const t=await res.text(); throw new Error('HTTP '+res.status+': '+t); }
+        const data = await res.json();
+        if (Array.isArray(data) && data.length >= 0) return data;
+      }catch(e){ /* جرّب المسار التالي */ }
+    }
+
+    // كحل أخير: لو النظام الأصلي سبق وجلب الاختبارات، حاول قراءة الكاش منه
+    try {
+      // بعض النسخ تخزنها في localStorage:
+      const cachedBySchool = localStorage.getItem('testsBySchool');
+      if (cachedBySchool){
+        const map = JSON.parse(cachedBySchool);
+        if (map && map[sid] && Array.isArray(map[sid])) return map[sid];
+      }
+      // أو ضمن demoSchoolsData:
+      const demo = localStorage.getItem('demoSchoolsData');
+      if (demo){
+        const arr = JSON.parse(demo);
+        const sch = Array.isArray(arr) ? arr.find(s=>String(s.id)===String(sid)) : null;
+        if (sch && Array.isArray(sch.tests)) return sch.tests;
+      }
+    }catch(_){}
+
+    throw new Error('لم أجد مسارًا صالحًا لجلب الاختبارات لهذه المدرسة: ' + sid);
+  }
+
+  // استبدل دالة الجلب داخل v5 بدون تغيير بقية الترقيع
+  if (typeof window.refreshTestsForCurrentSchool === 'function') {
+    const origRefresh = window.refreshTestsForCurrentSchool;
+    window.refreshTestsForCurrentSchool = async function({force=false}={}){
+      // استخرج نفس المنطق لتحديد المدرسة من v5
+      const $ = (s,r=document)=>r.querySelector(s);
+      try{
+        // حاول أخذ الـ id من التخزين/الـ DOM
+        let school = null;
+        try{
+          const a = localStorage.getItem('currentSchool') || localStorage.getItem('selectedSchool');
+          if (a) { const x = JSON.parse(a); if (x?.id) school = x; }
+        }catch(_){}
+        if (!school) {
+          const el = $('#chosenSchoolId') || $('[data-school-id]') || $('#schoolSelect');
+          if (el?.value) school = { id: el.value };
+          else if (el?.dataset?.schoolId) school = { id: el.dataset.schoolId };
+        }
+        if (!school || !school.id) { console.warn('[HOTFIX v5+] لا يمكن تحديد المدرسة الحالية.'); return; }
+
+        const sid = String(school.id);
+        // استخدم محلل المسارات الذكي بدل المسار الواحد
+        const tests = await fetchTestsForSchool(sid);
+        // مرر النتائج إلى المرسّم الأصلي داخل v5 إن كان معرفًا
+        if (window.__testsBySchool && typeof window.__testsBySchool.set === 'function') {
+          window.__testsBySchool.set(sid, Array.isArray(tests)?tests:[]);
+        }
+        // حاول إظهارها في جميع قوائم الاختبارات
+        (function render(){
+          const selects = new Set([ $('#testSelect'), $('#studentTestSelect') ].filter(Boolean));
+          document.querySelectorAll('select').forEach(s=>{
+            const idn = (s.id||'') + ' ' + (s.name||'');
+            if (/test/i.test(idn) && /select|choose|اختبار|اختر/i.test(idn)) selects.add(s);
+          });
+          selects.forEach(sel=>{
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">اختر الاختبار</option>';
+            (tests||[]).forEach(t=>{
+              const o=document.createElement('option'); o.value=t.id; o.textContent=t.title||t.name||('اختبار '+t.id);
+              sel.appendChild(o);
+            });
+            if (prev && tests.some(t=>String(t.id)===String(prev))) sel.value = prev;
+            if (!sel._hotfixBound){ sel.addEventListener('change', ()=> window.selectTest(sel.value)); sel._hotfixBound = true; }
+          });
+          const list = document.querySelector('#testList,[data-test-list]');
+          if (list){
+            list.innerHTML = '';
+            (tests||[]).forEach(t=>{
+              const li=document.createElement('li'); li.className='cursor-pointer hover:bg-gray-50 px-3 py-2';
+              li.textContent=t.title||t.name||('اختبار '+t.id);
+              li.onclick=()=> window.selectTest(t.id);
+              list.appendChild(li);
+            });
+          }
+          console.info('[HOTFIX v5+] tests rendered (smart):', Array.isArray(tests)?tests.length:0);
+        })();
+      }catch(e){
+        console.error('[HOTFIX v5+] refreshTestsForCurrentSchool error', e);
+      }
+    };
+    console.info('[HOTFIX v5+] smart tests resolver attached.');
+  } else {
+    console.warn('[HOTFIX v5+] لم أجد refreshTestsForCurrentSchool — تأكد أن v5 مُضاف قبل هذا الملحق.');
+  }
+})();
+</script>
+
 
 
 
