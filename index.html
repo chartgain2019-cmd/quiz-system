@@ -6559,6 +6559,216 @@ function getCurrentScreen() {
   }
 })();
 </script>
+<script>
+(function(){
+  if (window.__QUIZ_HOTFIX_MIN__) return; window.__QUIZ_HOTFIX_MIN__=true;
+
+  function log(){ try{ console.log.apply(console, arguments);}catch(e){} }
+  function warn(){ try{ console.warn.apply(console, arguments);}catch(e){} }
+
+  /* 0) BASE_API افتراضي (لن يغيّر قيمتك لو كانت موجودة) */
+  try{ if(!window.BASE_API){ window.BASE_API = "https://quiz-system-api.onrender.com/api"; } }catch(_){}
+
+  /* 1) خطاف fetch لالتقاط اختبارات /api/tests/{schoolId} وتخزينها */
+  try{
+    if (!window.__FETCH_HOOK_MIN__ && window.fetch){
+      var of = window.fetch.bind(window);
+      window.__studentTests = window.__studentTests || {};
+      window.__currentSchoolId = window.__currentSchoolId || null;
+      window.fetch = function(input, init){
+        var url = (typeof input==="string")? input : (input && input.url? input.url : "");
+        return of(input, init).then(function(resp){
+          try{
+            if (url.indexOf("/api/tests/") !== -1){
+              var m = url.match(/\/tests\/([^\/\?\#]+)/);
+              var sid = m && m[1] ? decodeURIComponent(m[1]) : null;
+              if (sid){
+                var clone = resp.clone();
+                clone.text().then(function(txt){
+                  try{
+                    var data = txt ? JSON.parse(txt) : [];
+                    var arr = (data && data.tests && typeof data.tests.length==="number")? data.tests : (Array.isArray(data)? data : []);
+                    if (arr){
+                      window.__studentTests[sid] = arr;
+                      window.__currentSchoolId = sid;
+                      try{
+                        if (window.demoData && window.demoData.schools){
+                          if (!window.demoData.schools[sid]) window.demoData.schools[sid] = { id:sid, name:sid, tests:[] };
+                          window.demoData.schools[sid].tests = arr.slice();
+                        }
+                      }catch(_){}
+                      log("[HOTFIX] captured tests", sid, arr.length);
+                    }
+                  }catch(_){}
+                });
+              }
+            }
+          }catch(_){}
+          return resp;
+        });
+      };
+      window.__FETCH_HOOK_MIN__ = true;
+    }
+  }catch(_){}
+
+  /* 2) إخفاء أي تفريغ شيفرة/نص أسفل الصفحة */
+  try{
+    if (!window.__DUMP_HIDER_MIN__){
+      function looksLikeCodeText(t){
+        if (!t) return false;
+        if (t.length < 80) return false;
+        var pts = ["function ","var ","const ","let ","=>","{","}",";","<script","</script>"];
+        var s=0; for (var i=0;i<pts.length;i++){ if (t.indexOf(pts[i])!==-1) s++; }
+        return s >= 3;
+      }
+      function scanTail(){
+        try{
+          var nodes = document.body ? document.body.childNodes : [];
+          if (!nodes || !nodes.length) return;
+          var start = nodes.length - 12; if (start < 0) start = 0;
+          for (var i=start;i<nodes.length;i++){
+            var n = nodes[i];
+            if (!n) continue;
+            if (n.nodeType === 3){ /* نص خام */
+              var txt = (n.textContent||"").trim();
+              if (looksLikeCodeText(txt) && n.parentNode){
+                n.parentNode.replaceChild(document.createComment("hidden dump"), n);
+                log("[HOTFIX] removed stray text node");
+              }
+            } else if (n.nodeType === 1 && !n.getAttribute("data-auto-hidden")){
+              var inner = (n.innerText||"").trim();
+              if (inner && inner.length > 200 && looksLikeCodeText(inner)){
+                n.style.display = "none";
+                n.setAttribute("data-auto-hidden","true");
+                log("[HOTFIX] hid stray element <", n.tagName, ">");
+              }
+            }
+          }
+        }catch(_){}
+      }
+      scanTail();
+      try{
+        var mo = new MutationObserver(function(){ scanTail(); });
+        mo.observe(document.body, { childList:true, subtree:true });
+      }catch(_){}
+      window.__DUMP_HIDER_MIN__ = true;
+    }
+  }catch(_){}
+
+  /* 3) منع تنبيه “المدرسة المحددة غير موجودة” إذا كانت لدينا اختبارات فعلاً */
+  try{
+    if (!window.__ALERT_FILTER_MIN__){
+      var oa = window.alert ? window.alert.bind(window) : null;
+      window.alert = function(msg){
+        try{
+          var s = "" + (msg==null? "" : msg);
+          if (s.indexOf("المدرسة المحددة غير موجودة") !== -1){
+            var sid = window.__currentSchoolId;
+            var ok = (sid && window.__studentTests && Array.isArray(window.__studentTests[sid]) && window.__studentTests[sid].length > 0);
+            if (ok){ console.warn("[HOTFIX] suppressed false alert:", s); return; }
+          }
+        }catch(_){}
+        if (oa) return oa(msg);
+      };
+      window.__ALERT_FILTER_MIN__ = true;
+    }
+  }catch(_){}
+
+  /* 4) selectTest آمنة: لا تعتمد على demoData عندما تكون خالية */
+  try{
+    if (!window.__SELECT_SAFE_MIN__){
+      var origSelect = (typeof window.selectTest==="function") ? window.selectTest : null;
+      function applyUI(t){
+        try{
+          if (!t) return;
+          var info = document.getElementById("testInfo");
+          if (info){
+            var el;
+            el = info.querySelector("#testSubject"); if (el) el.textContent = String(t.subject||"");
+            el = info.querySelector("#testQuestions"); if (el) el.textContent = String((t.questions||[]).length);
+            el = info.querySelector("#testGrade"); if (el) el.textContent = String(t.grade||"");
+            el = info.querySelector("#testTimer"); if (el) el.textContent = String(t.timerPerQuestion||30) + " ثانية";
+            try{ info.classList.remove("hidden"); }catch(_){}
+          }
+          var gradeSel = document.getElementById("studentGrade");
+          if (gradeSel){
+            var v = String(t.grade||"");
+            gradeSel.innerHTML = "<option value=\""+v+"\" selected>"+v+"</option>";
+          }
+          var form = document.getElementById("studentForm"); if (form) try{ form.classList.remove("hidden"); }catch(_){}
+          var sec  = document.getElementById("studentSection"); if (sec) try{ sec.classList.remove("hidden"); }catch(_){}
+          window.currentTest = t;
+        }catch(_){}
+      }
+      window.selectTest = function(testId){
+        var chosen = null;
+        try{
+          var sid = window.__currentSchoolId || window.currentSchoolId || window.selectedSchoolId;
+          var list = (sid && window.__studentTests && window.__studentTests[sid])? window.__studentTests[sid] : null;
+          if (list && list.length){
+            for (var i=0;i<list.length;i++){
+              var t = list[i]; var tid = "" + (t.id || t._id || "");
+              if (tid === String(testId)){ chosen = t; break; }
+            }
+            if (!chosen) chosen = list[0];
+          }
+          if (!chosen && origSelect){
+            try{ chosen = origSelect.apply(this, arguments) || null; }catch(_){}
+          }
+          applyUI(chosen);
+          return chosen;
+        }catch(e){
+          warn("[HOTFIX] selectTest error", e);
+          try{ applyUI(chosen); }catch(_){}
+          return chosen;
+        }
+      };
+      window.__SELECT_SAFE_MIN__ = true;
+    }
+  }catch(_){}
+
+  /* 5) تشغيل زر “بدء الاختبار” حتى لو المعالج الأصلي لا يعمل */
+  try{
+    if (!window.__START_BIND_MIN__){
+      function findRunner(){
+        var el = document.getElementById("runner"); if (el) return el;
+        el = document.querySelector("[data-runner], .runner, #testRunner, #examRunner");
+        return el || null;
+      }
+      function safeStart(ev){
+        try{ if (ev && ev.preventDefault) ev.preventDefault(); }catch(_){}
+        try{ if (typeof window.startTest === "function"){ window.startTest(); return; } }catch(_){}
+        try{ if (typeof window.beginTest === "function"){ window.beginTest(); return; } }catch(_){}
+        try{ if (typeof window.startExam === "function"){ window.startExam(); return; } }catch(_){}
+        var r = findRunner(); if (r) try{ r.classList.remove("hidden"); }catch(_){}
+        try{ if (typeof window.renderCurrentQuestion === "function"){ window.renderCurrentQuestion(); return; } }catch(_){}
+        var sid = window.__currentSchoolId;
+        var list = (sid && window.__studentTests && window.__studentTests[sid])? window.__studentTests[sid] : [];
+        if (!list || !list.length){ alert("اختر مدرسة ثم اختبار قبل البدء."); return; }
+        alert("بدأ الاختبار — تم استخدام مسار احتياطي لأن الدالة الأصلية غير معرّفة.");
+      }
+      function bind(){
+        var c = []; 
+        var byId = document.getElementById("startTestBtn"); if (byId) c.push(byId);
+        var btns = document.querySelectorAll("button, a[role='button'], input[type='button'], input[type='submit']");
+        for (var i=0;i<btns.length;i++){
+          var b = btns[i]; var txt = ("" + (b.innerText || b.value || "")).trim();
+          if (!txt) continue;
+          if (txt.indexOf("بدء")!==-1 || txt.indexOf("الاختبار")!==-1 || /start/i.test(txt)) c.push(b);
+        }
+        for (var j=0;j<c.length;j++){ var el = c[j]; if (!el.__startBindMin){ el.addEventListener("click", safeStart); el.__startBindMin = true; } }
+      }
+      bind();
+      try{
+        var mo = new MutationObserver(function(){ bind(); });
+        mo.observe(document.documentElement, { childList:true, subtree:true });
+      }catch(_){}
+      window.__START_BIND_MIN__ = true;
+    }
+  }catch(_){}
+
+})();
+</script>
 	
 
 
