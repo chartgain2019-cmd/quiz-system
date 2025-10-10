@@ -6941,6 +6941,183 @@ function getCurrentScreen() {
   }
 })();
 </script>
+<script>
+(function(){
+  if (window.__QUIZ_FINAL_FIX__) return; window.__QUIZ_FINAL_FIX__=true;
+
+  // ===== أدوات مساعدة =====
+  function getId(t){ return String(t && (t.id!=null ? t.id : (t._id!=null ? t._id : ''))); }
+  function normTest(t){ return { id:getId(t), name:(t.name||t.subject||'اختبار'), subject:(t.subject||''), grade:(t.grade||''), timerPerQuestion:Number(t.timerPerQuestion||30), questions:Array.isArray(t.questions)?t.questions:[] }; }
+  function ensureStores(){ window.__studentTests=window.__studentTests||{}; window.__currentSchoolId=window.__currentSchoolId||null; window.demoData=window.demoData||{schools:{}}; window.demoData.schools=window.demoData.schools||{}; }
+
+  // ===== تطبيق معلومات اختبار على واجهة الطالب =====
+  function applyTestUI(test){
+    if(!test) return;
+    var info=document.getElementById('testInfo');
+    if(info){
+      var set=(sel,val)=>{ var el=info.querySelector(sel); if(el) el.textContent=String(val||''); };
+      set('#testSubject', test.subject);
+      set('#testQuestions', (test.questions||[]).length);
+      set('#testGrade', test.grade);
+      set('#testTimer', (test.timerPerQuestion||30)+' ثانية');
+      info.classList.remove('hidden');
+    }
+    var gradeSel=document.getElementById('studentGrade');
+    if(gradeSel){ var g=String(test.grade||''); gradeSel.innerHTML='<option value="'+g+'" selected>'+g+'</option>'; }
+    var form=document.getElementById('studentForm'); if(form) form.classList.remove('hidden');
+    var sec=document.getElementById('studentSection'); if(sec) sec.classList.remove('hidden');
+    window.currentTest = test;
+  }
+
+  // ===== اختيار اختبار بأمان من المخزن الحالي =====
+  function safeSelectTestById(testId){
+    ensureStores();
+    var sid=window.__currentSchoolId;
+    var list=(sid && window.__studentTests[sid])? window.__studentTests[sid] : [];
+    var chosen=null;
+    if(list && list.length){
+      for(var i=0;i<list.length;i++){ if(getId(list[i])===String(testId)){ chosen=list[i]; break; } }
+      if(!chosen) chosen=list[0];
+    }
+    applyTestUI(chosen);
+    return chosen;
+  }
+
+  // ===== تحديث قائمة الاختبارات + مزامنة demoData =====
+  function refreshTestsUI(sid, tests){
+    ensureStores();
+    var normalized=(tests||[]).map(normTest);
+    window.__studentTests[sid]=normalized;
+    if(!window.demoData.schools[sid]) window.demoData.schools[sid]={ id:sid, name:sid, tests:[] };
+    window.demoData.schools[sid].tests = normalized.slice();
+
+    var sel=document.getElementById('testsList');
+    if(sel){
+      sel.innerHTML = normalized.map(t=>'<option value="'+t.id+'">'+(t.name||'اختبار')+'</option>').join('');
+      if(normalized.length){
+        sel.value = normalized[0].id;
+        safeSelectTestById(normalized[0].id);
+      }
+    }
+    console.log('[HOTFIX UI] tests rendered:', normalized.length);
+  }
+
+  // ===== ربط تغيير القائمة =====
+  function bindSelectChange(){
+    var sel=document.getElementById('testsList');
+    if(!sel || sel.__boundFinalFix) return;
+    sel.addEventListener('change', function(e){ safeSelectTestById(e.target.value); });
+    sel.__boundFinalFix = true;
+  }
+
+  // ===== تتبع اختيار المدرسة =====
+  (function(){
+    var orig=window.chooseSchool;
+    window.chooseSchool = async function(id, name){
+      window.__currentSchoolId = id;
+      if(typeof orig==='function') return orig.apply(this, arguments);
+    };
+  })();
+
+  // ===== خطاف fetch: التقط الجلب/الإنشاء وحدّث القائمة تلقائيًا =====
+  (function(){
+    if(window.__FINAL_FETCH_HOOK__ || !window.fetch) return;
+    var of=window.fetch.bind(window);
+    window.fetch=function(input, init){
+      var url=(typeof input==='string')? input : (input && input.url? input.url : '');
+      var method=(init && init.method)? String(init.method).toUpperCase() : 'GET';
+      return of(input, init).then(function(resp){
+        try{
+          // أي جلب لاختبارات مدرسة
+          if(url.indexOf('/api/tests/')!==-1){
+            var m=url.match(/\/tests\/([^\/\?#]+)/); var sid=m && m[1]? decodeURIComponent(m[1]) : null;
+            if(sid){
+              var clone=resp.clone();
+              clone.text().then(function(txt){
+                try{
+                  var data = txt? JSON.parse(txt) : [];
+                  var arr = Array.isArray(data)? data : (data && data.tests ? data.tests : []);
+                  if(Array.isArray(arr)){ if(!window.__currentSchoolId) window.__currentSchoolId=sid; refreshTestsUI(sid, arr); }
+                }catch(_){}
+              });
+            }
+          }
+          // بعد POST إنشاء اختبار: أعد الجلب للتحديث
+          if(method==='POST' && url.indexOf('/api/tests/')!==-1){
+            var m2=url.match(/\/tests\/([^\/\?#]+)/); var sid2=m2 && m2[1]? decodeURIComponent(m2[1]) : null;
+            if(sid2){
+              setTimeout(function(){
+                of((window.BASE_API||'https://quiz-system-api.onrender.com/api').replace(/\/+$/,'')+'/tests/'+encodeURIComponent(sid2))
+                  .then(r=>r.json()).then(function(data){
+                    var arr = Array.isArray(data)? data : (data && data.tests ? data.tests : []);
+                    refreshTestsUI(sid2, arr);
+                  }).catch(function(_){});
+              }, 80);
+            }
+          }
+        }catch(_){}
+        return resp;
+      });
+    };
+    window.__FINAL_FETCH_HOOK__=true;
+  })();
+
+  // ===== زر "بدء الاختبار" حتى لو الدالة الأصلية معطلة =====
+  (function(){
+    if(window.__FINAL_START_BIND__) return;
+    function findRunner(){ return document.getElementById('runner') || document.querySelector('[data-runner], .runner, #testRunner, #examRunner'); }
+    function safeStart(e){
+      try{ e && e.preventDefault && e.preventDefault(); }catch(_){}
+      try{ if(typeof window.startTest==='function'){ window.startTest(); return; } }catch(_){}
+      try{ if(typeof window.beginTest==='function'){ window.beginTest(); return; } }catch(_){}
+      var r=findRunner(); if(r) try{ r.classList.remove('hidden'); }catch(_){}
+      try{ if(typeof window.renderCurrentQuestion==='function'){ window.renderCurrentQuestion(); return; } }catch(_){}
+      var sid=window.__currentSchoolId, list=(sid&&window.__studentTests[sid])?window.__studentTests[sid]:[];
+      if(!list||!list.length){ alert('اختر مدرسة ثم اختبار قبل البدء.'); return; }
+      alert('بدأ الاختبار (مسار احتياطي).');
+    }
+    function bind(){
+      var c=[]; var byId=document.getElementById('startTestBtn'); if(byId) c.push(byId);
+      document.querySelectorAll('button, a[role="button"], input[type="button"], input[type="submit"]').forEach(function(b){
+        var t=(b.innerText||b.value||'').trim(); if(!t) return;
+        if(t.includes('بدء')||t.includes('الاختبار')||/start/i.test(t)) c.push(b);
+      });
+      c.forEach(function(el){ if(!el.__finalStart){ el.addEventListener('click', safeStart); el.__finalStart=true; }});
+    }
+    bind();
+    new MutationObserver(bind).observe(document.documentElement, {childList:true, subtree:true});
+    window.__FINAL_START_BIND__=true;
+  })();
+
+  // ===== إخفاء أي تفريغ أكواد/نص أسفل الصفحة =====
+  (function(){
+    if(window.__FINAL_DUMP_HIDER__) return;
+    function looksLikeCode(t){ if(!t||t.length<80) return false; var p=['function ','var ','const ','let ','=>','{','}',';','<script','</script>']; var s=0; for(var i=0;i<p.length;i++){ if(t.indexOf(p[i])!==-1) s++; } return s>=3; }
+    function scanTail(){
+      var nodes=document.body?document.body.childNodes:[];
+      var start=Math.max(0,(nodes?nodes.length:0)-12);
+      for(var i=start;i<(nodes?nodes.length:0);i++){
+        var n=nodes[i]; if(!n) continue;
+        if(n.nodeType===3){ var txt=(n.textContent||'').trim(); if(looksLikeCode(txt) && n.parentNode){ n.parentNode.replaceChild(document.createComment('hidden dump'), n); } }
+        else if(n.nodeType===1 && !n.getAttribute('data-auto-hidden')){ var inner=(n.innerText||'').trim(); if(inner.length>200 && looksLikeCode(inner)){ n.style.display='none'; n.setAttribute('data-auto-hidden','true'); } }
+      }
+    }
+    scanTail(); new MutationObserver(scanTail).observe(document.body, {childList:true, subtree:true});
+    window.__FINAL_DUMP_HIDER__=true;
+  })();
+
+  // ===== تهيئة أولية =====
+  function init(){
+    bindSelectChange();
+    var sid=window.__currentSchoolId;
+    if(sid && window.__studentTests && Array.isArray(window.__studentTests[sid])){
+      refreshTestsUI(sid, window.__studentTests[sid]);
+    }
+  }
+  (document.readyState==='loading')? document.addEventListener('DOMContentLoaded', init) : init();
+
+})();
+</script>
 	
 
 
