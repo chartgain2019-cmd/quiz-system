@@ -6555,19 +6555,16 @@ function getCurrentScreen() {
   };
 })();
 
-      const res = await origFetch(input, patched);
+     (async function(){
+  try {
+    await someCall();
+    const x = await fetchData();
+    doSomething(x);
+  } catch (e) {
+    console.error('[async block]', e);
+  }
+})();
 
-      // نحاول قراءة الرد
-      try{
-        const clone = res.clone();
-        const text  = await clone.text();
-        try{
-          const json = JSON.parse(text);
-          if (looksLikeTestsArray(json)) {
-            renderStudentTests(json);
-          }
-        }catch(_){}
-      }catch(_){}
 
       // بعد تعديل /tests أو /questions — فقط ننتظر ليُعيد كودك الجلب التالي وسنلتقطه
       try{
@@ -6594,7 +6591,7 @@ function getCurrentScreen() {
   log('loaded.');
 })();
 </script>
-<\/script>
+</script>
 	/* HOTFIX authToken — تطبيع authToken وإيقاف أخطاء JSON.parse المتكررة */
 (function(){
   try{
@@ -6620,8 +6617,8 @@ function getCurrentScreen() {
     console.warn('[HOTFIX authToken] failed:', e);
   }
 })();<!-- 1) تصحيح authToken + إزالة أي محارف/أخطاء محتملة -->
-<script>
-(function(){
+</script>
+ (function(){
   try {
     // 2) نلفّ localStorage.getItem لضمان إعادة JSON صالح دائمًا لهذا المفتاح
     var KEY = 'authToken';
@@ -6640,7 +6637,7 @@ function getCurrentScreen() {
 </script>
 
 <!-- 2) HOTFIX_MIN: التقاط اختبارات /api/tests/ + إخفاء تفريغ أكواد + selectTest آمنة + زر البدء -->
-<script>
+</script>
 (function(){
   if (window.__QUIZ_HOTFIX_MIN__) return; window.__QUIZ_HOTFIX_MIN__=true;
 
@@ -6701,7 +6698,7 @@ function getCurrentScreen() {
         var pts = ["function ","var ","const ","let ","=>","{","}",";","<script","</script>"];
         var s=0; for (var i=0;i<pts.length;i++){ if (t.indexOf(pts[i])!==-1) s++; }
         return s >= 3;
-      }
+   }
       function scanTail(){
         try{
           var nodes = document.body ? document.body.childNodes : [];
@@ -7194,6 +7191,227 @@ function getCurrentScreen() {
 })();
 </script>
 	
+<script>
+(function(){
+  if (window.__QUIZ_ENFORCE_FINAL__) return; window.__QUIZ_ENFORCE_FINAL__=true;
+
+  // — أدوات —
+  function getId(t){ return String(t && (t.id!=null ? t.id : (t._id!=null ? t._id : ''))); }
+  function ensureStores(){ window.__studentTests=window.__studentTests||{}; window.__currentSchoolId=window.__currentSchoolId||null; }
+
+  // عرض معلومات الاختبار + إظهار نموذج الطالب
+  function applyTestUI(test){
+    if(!test) return;
+    var info=document.getElementById('testInfo');
+    if(info){
+      var set=function(sel,val){ var el=info.querySelector(sel); if(el) el.textContent=String(val||''); };
+      set('#testSubject, [data-subject], .subject', test.subject||'');
+      set('#testQuestions, [data-questions], .questions', (test.questions||[]).length);
+      set('#testGrade, [data-grade], .grade', test.grade||'');
+      set('#testTimer, [data-timer], .timer', (test.timerPerQuestion||30)+' ثانية');
+      info.classList.remove('hidden');
+    }
+    var gradeSel = document.getElementById('studentGrade') || document.querySelector('select[name*="grade"], select[id*="grade"]');
+    if(gradeSel){
+      var g=String(test.grade||''); gradeSel.innerHTML='<option value="'+g+'" selected>'+g+'</option>';
+    }
+    var form=document.getElementById('studentForm')||document.getElementById('studentFormArea')||document.querySelector('#student-form, .student-form, [data-student-form]');
+    if(form) form.classList.remove('hidden');
+    var sec=document.getElementById('studentSection')||document.getElementById('studentAccessScreen')||document.querySelector('#student-section, .student-section, [data-student-section]');
+    if(sec) sec.classList.remove('hidden');
+    window.currentTest = test;
+  }
+
+  // نسخة آمنة من selectTest تشتغل دائمًا
+  function safeSelectTestById(testId){
+    ensureStores();
+    var sid=window.__currentSchoolId;
+    var list=(sid && window.__studentTests[sid])? window.__studentTests[sid] : [];
+    var chosen=null, idStr=String(testId);
+    for (var i=0;i<list.length;i++){ if(getId(list[i])===idStr){ chosen=list[i]; break; } }
+    if(!chosen && list.length) chosen=list[0];
+    applyTestUI(chosen);
+    return chosen;
+  }
+
+  // افرض دالة selectTest على المستوى العام
+  (function enforceSelect(){
+    window.selectTest = function(testId){
+      try{ return safeSelectTestById(testId); }
+      catch(e){ console.error('[selectTest enforced]',e); alert('تعذر اختيار الاختبار.'); return null; }
+    };
+  })();
+
+  // اربط جميع القوائم التي كان onChange فيها يشير للدالة الأصلية
+  function rebindSelects(){
+    var sels = [];
+    var byId = document.getElementById('testsList'); if (byId) sels.push(byId);
+    document.querySelectorAll('select').forEach(function(s){ 
+      var h = s.getAttribute('onchange') || '';
+      if (h.indexOf('selectTest')!==-1 || /test/i.test(s.id||'') ) sels.push(s);
+    });
+    sels.forEach(function(s){
+      if (s.__rebound) return;
+      s.__rebound = true;
+      s.onchange = function(e){ window.selectTest(e.target.value); };
+    });
+  }
+
+  // بعد أي جلب للاختبارات حدّث القائمة لو عندك عنصر select
+  function refreshTestsUIIfPossible(){
+    var sid=window.__currentSchoolId;
+    var list=(sid && window.__studentTests[sid])? window.__studentTests[sid] : [];
+    var sel=document.getElementById('testsList') || document.querySelector('select#tests, select[name*="test"], select[id*="test"]');
+    if(!sel || !Array.isArray(list)) return;
+    sel.innerHTML = list.map(function(t){ var id=getId(t); var name=t.name||t.subject||'اختبار'; return '<option value="'+id+'">'+name+'</option>'; }).join('');
+    if(list.length){ sel.value=getId(list[0]); window.selectTest(sel.value); }
+  }
+
+  // هوك fetch: التقاط الردود /api/tests/{sid}
+  (function hookFetch(){
+    if (!window.fetch || window.__QUIZ_FETCH_ENFORCED__) return;
+    window.__QUIZ_FETCH_ENFORCED__=true;
+    var of = window.fetch.bind(window);
+    window.fetch = function(input, init){
+      return of(input, init).then(function(resp){
+        try{
+          var url=(typeof input==='string')? input : (input && input.url? input.url : '');
+          if (url && url.indexOf('/api/tests/')!==-1){
+            var m=url.match(/\/tests\/([^\/\?#]+)/); var sid=m && m[1]? decodeURIComponent(m[1]) : null;
+            if (sid){
+              var c=resp.clone();
+              c.text().then(function(txt){
+                try{
+                  var data=txt? JSON.parse(txt):[];
+                  var arr = Array.isArray(data)? data : (data && data.tests ? data.tests : []);
+                  if(Array.isArray(arr)){ ensureStores(); window.__studentTests[sid]=arr; window.__currentSchoolId = window.__currentSchoolId || sid; refreshTestsUIIfPossible(); }
+                }catch(_){}
+              });
+            }
+          }
+        }catch(_){}
+        return resp;
+      });
+    };
+  })();
+
+  // ربط زر "بدء الاختبار" بمسار آمن
+  function bindStart(){
+    function tryStart(e){
+      try{ e && e.preventDefault && e.preventDefault(); }catch(_){}
+      if (typeof window.startTest==='function') { try{ return window.startTest(); }catch(_){ } }
+      if (typeof window.beginTest==='function') { try{ return window.beginTest(); }catch(_){ } }
+      if (typeof window.renderCurrentQuestion==='function') { try{ return window.renderCurrentQuestion(); }catch(_){ } }
+      var sid=window.__currentSchoolId, list=(sid && window.__studentTests[sid])? window.__studentTests[sid] : [];
+      if(!list.length) return alert('اختر مدرسة ثم اختبار قبل البدء.');
+      alert('بدأ الاختبار (مسار احتياطي).');
+    }
+    var cands=[];
+    var byId=document.getElementById('startTestBtn'); if (byId) cands.push(byId);
+    document.querySelectorAll('button, a[role="button"], input[type="button"], input[type="submit"]').forEach(function(b){
+      var t=(b.innerText||b.value||'').trim(); if(!t) return;
+      if (t.includes('بدء') || t.includes('الاختبار') || /start/i.test(t)) cands.push(b);
+    });
+    cands.forEach(function(el){ if(!el.__startBound){ el.addEventListener('click', tryStart); el.__startBound=true; }});
+  }
+
+  function init(){ rebindSelects(); refreshTestsUIIfPossible(); bindStart(); }
+  (document.readyState==='loading')? document.addEventListener('DOMContentLoaded', init) : init();
+  new MutationObserver(function(){ rebindSelects(); bindStart(); }).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+<script>
+(function(){
+  if (window.__ENFORCE_SELECT_TEST__) return; window.__ENFORCE_SELECT_TEST__=true;
+
+  function getId(t){ return String(t && (t.id!=null ? t.id : (t._id!=null ? t._id : ''))); }
+  function ensureStores(){ window.__studentTests=window.__studentTests||{}; window.__currentSchoolId=window.__currentSchoolId||null; }
+
+  function applyTestUI(test){
+    if(!test) return;
+    var info=document.getElementById('testInfo');
+    if(info){
+      var set=function(sel,val){ var el=info.querySelector(sel); if(el) el.textContent=String(val||''); };
+      set('#testSubject, [data-subject], .subject', test.subject||'');
+      set('#testQuestions, [data-questions], .questions', (test.questions||[]).length);
+      set('#testGrade, [data-grade], .grade', test.grade||'');
+      set('#testTimer, [data-timer], .timer', (test.timerPerQuestion||30)+' ثانية');
+      info.classList.remove('hidden');
+    }
+    var gradeSel=document.getElementById('studentGrade')||document.querySelector('select[name*="grade"], select[id*="grade"]');
+    if(gradeSel){ var g=String(test.grade||''); gradeSel.innerHTML='<option value="'+g+'" selected>'+g+'</option>'; }
+    var form=document.getElementById('studentForm')||document.getElementById('studentFormArea')||document.querySelector('#student-form, .student-form, [data-student-form]');
+    if(form) form.classList.remove('hidden');
+    var sec=document.getElementById('studentSection')||document.getElementById('studentAccessScreen')||document.querySelector('#student-section, .student-section, [data-student-section]');
+    if(sec) sec.classList.remove('hidden');
+    window.currentTest = test;
+  }
+
+  function safeSelectTestById(testId){
+    ensureStores();
+    var sid=window.__currentSchoolId;
+    var list=(sid && window.__studentTests[sid])? window.__studentTests[sid] : [];
+    var chosen=null, idStr=String(testId);
+    for (var i=0;i<list.length;i++){ if(getId(list[i])===idStr){ chosen=list[i]; break; } }
+    if(!chosen && list.length) chosen=list[0];
+    applyTestUI(chosen);
+    return chosen;
+  }
+
+  // فرض نسخة آمنة
+  window.selectTest = function(testId){
+    try{ return safeSelectTestById(testId); }
+    catch(e){ console.error('[selectTest enforced]',e); alert('تعذر اختيار الاختبار.'); return null; }
+  };
+
+  // إعادة ربط أي <select> يستعمل onchange=selectTest(...)
+  function rebindSelects(){
+    var sels=[];
+    var byId=document.getElementById('testsList'); if(byId) sels.push(byId);
+    document.querySelectorAll('select').forEach(function(s){
+      var h=(s.getAttribute('onchange')||'');
+      if (h.indexOf('selectTest')!==-1 || /test/i.test(s.id||'')) sels.push(s);
+    });
+    sels.forEach(function(s){
+      if (s.__rebound) return;
+      s.__rebound=true;
+      s.onchange=function(e){ window.selectTest(e.target.value); };
+    });
+  }
+
+  // التقط أي GET /api/tests/{sid} لتعبئة المخزن
+  (function hookFetch(){
+    if (!window.fetch || window.__FETCH_CAPTURE_TESTS__) return;
+    window.__FETCH_CAPTURE_TESTS__=true;
+    var of=window.fetch.bind(window);
+    window.fetch=function(input, init){
+      return of(input, init).then(function(resp){
+        try{
+          var url=(typeof input==='string')? input : (input && input.url? input.url : '');
+          if (url && url.indexOf('/api/tests/')!==-1){
+            var m=url.match(/\/tests\/([^\/\?#]+)/); var sid=m && m[1]? decodeURIComponent(m[1]) : null;
+            if(sid){
+              var c=resp.clone();
+              c.text().then(function(txt){
+                try{
+                  var data=txt? JSON.parse(txt):[];
+                  var arr=Array.isArray(data)? data : (data && data.tests ? data.tests : []);
+                  if(Array.isArray(arr)){ ensureStores(); window.__studentTests[sid]=arr; window.__currentSchoolId=window.__currentSchoolId||sid; }
+                }catch(_){}
+              });
+            }
+          }
+        }catch(_){}
+        return resp;
+      });
+    };
+  })();
+
+  function init(){ rebindSelects(); }
+  (document.readyState==='loading')? document.addEventListener('DOMContentLoaded', init) : init();
+  new MutationObserver(function(){ rebindSelects(); }).observe(document.documentElement, {childList:true, subtree:true});
+})();
+</script>
 
 
 
